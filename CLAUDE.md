@@ -15,17 +15,22 @@ This project is a collection of simple browser-based math games for an elementar
 Games should scale in difficulty whenever the math allows. Convention:
 
 - Level 1 — single digit
-- Level 2 — two-digit, no carry/borrow
-- Level 3 — two-digit, with carry/borrow
-- Level 4+ — larger numbers, mixed operations, or added twists
+- Level 2 — two-digit up to 30, no carry/borrow
+- Level 3 — two-digit up to 30, with carry/borrow
+- Level 4 — three digit, carry/borrow
+- Level 5+ — larger  numbers, mixed operations, or added twists
 
 Show a level picker at the top of the game so the child can choose freely. Persist the last-used level in `localStorage` under the key `mathgames.<game-id>.level`.
 
 ## Adding a new game
 
-1. Create `games/<slug>.html`. Use `games/addition-basic.html` as the starting template — copy it and rework the question logic.
-2. Add an entry to the `GAMES` array in `index.html` with `id`, `emoji`, `title`, `desc`, and `file`.
-3. Test at 768x1024 (iPad portrait) and 375x667 (phone portrait). Play through every level.
+`GAMES.md` at the repo root is the source of truth for what each game does. Every game should have a spec entry there.
+
+1. **Spec first.** If there is no entry for the game in `GAMES.md`, write one using the template at the top of that file. If there is one, re-read it — the spec wins over any assumption from the game name.
+2. Create `games/<id>.html`. Use `games/addition-basic.html` as the starting template — copy it and rework the question logic to match the spec.
+3. Add an entry to the `GAMES` array in `index.html` with `id`, `emoji`, `title`, `desc`, and `file`.
+4. Test at 768x1024 (iPad portrait) and 375x667 (phone portrait). Play through every level, including intentionally wrong answers.
+5. Update the spec entry's `Status` in `GAMES.md` to `built`.
 
 ## Design conventions
 

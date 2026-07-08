@@ -12,6 +12,9 @@ Desktop.ini
 # Claude Code session/local state
 .claude/
 
+# Obsidian vault state
+.obsidian/
+
 # Logs
 *.log
 

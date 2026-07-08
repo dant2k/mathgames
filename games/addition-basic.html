@@ -47,10 +47,9 @@
     align-items: center; justify-content: center; text-align: center; padding: 12px 0;
   }
   .prompt {
-    font-size: 5rem; font-weight: 800; letter-spacing: 0.05em;
+    font-size: clamp(2.5rem, 11vw, 5rem); font-weight: 800; letter-spacing: 0.05em;
     margin-bottom: 40px; line-height: 1.1;
   }
-  @media (max-width: 400px) { .prompt { font-size: 3.75rem; } }
 
   .choices {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
@@ -93,17 +92,36 @@
   const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
 
   const LEVELS = [
-    { name: 'Level 1', gen: () => pair(0, 9, 0, 9) },
-    { name: 'Level 2', gen: () => pair(10, 99, 0, 9) },
-    { name: 'Level 3', gen: () => pair(10, 99, 10, 99) }
+    { name: 'Level 1', gen: () => addOp(rand(0, 9), rand(0, 9)) },
+    { name: 'Level 2', gen: () => genNoCarryPair(10, 30) },
+    { name: 'Level 3', gen: () => addOp(rand(10, 30), rand(10, 30)) },
+    { name: 'Level 4', gen: () => addOp(rand(100, 999), rand(100, 999)) },
+    { name: 'Level 5', gen: () => genNoCarryTriple(10, 99) }
   ];
 
-  function pair(lo1, hi1, lo2, hi2) {
-    const a = rand(lo1, hi1);
-    const b = rand(lo2, hi2);
-    return { a, b, answer: a + b };
-  }
   function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+
+  function addOp(...operands) {
+    return { operands, answer: operands.reduce((s, x) => s + x, 0) };
+  }
+
+  function genNoCarryPair(lo, hi) {
+    for (let i = 0; i < 200; i++) {
+      const a = rand(lo, hi), b = rand(lo, hi);
+      if ((a % 10) + (b % 10) <= 9) return addOp(a, b);
+    }
+    return addOp(lo, lo);
+  }
+
+  function genNoCarryTriple(lo, hi) {
+    for (let i = 0; i < 500; i++) {
+      const a = rand(lo, hi), b = rand(lo, hi), c = rand(lo, hi);
+      const ones = (a % 10) + (b % 10) + (c % 10);
+      const tens = Math.floor(a / 10) + Math.floor(b / 10) + Math.floor(c / 10);
+      if (ones <= 9 && tens <= 9) return addOp(a, b, c);
+    }
+    return addOp(12, 23, 14);
+  }
 
   function buildChoices(correct) {
     const set = new Set([correct]);
@@ -151,7 +169,7 @@
   function nextQuestion() {
     locked = false;
     current = LEVELS[level].gen();
-    promptEl.textContent = current.a + ' + ' + current.b;
+    promptEl.textContent = current.operands.join(' + ');
     const options = buildChoices(current.answer);
     choicesEl.innerHTML = '';
     options.forEach(ans => {
