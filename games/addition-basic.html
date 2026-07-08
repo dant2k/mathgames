@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Addition — Math Games</title>
+<style>
+  :root {
+    --bg: #fff7e6;
+    --card-bg: #ffffff;
+    --accent: #ff9b3d;
+    --text: #1a2233;
+    --muted: #6b7a90;
+    --correct: #4caf50;
+    --correct-bg: #eaffea;
+    --wrong: #ff6b6b;
+    --wrong-bg: #ffecec;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body { min-height: 100vh; padding: 16px 20px 24px; display: flex; flex-direction: column; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .back {
+    color: var(--muted); text-decoration: none; font-size: 1.05rem;
+    padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,0.04);
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .score { font-size: 1.05rem; color: var(--muted); }
+  .score strong { color: var(--accent); font-size: 1.4rem; margin-left: 4px; }
+
+  .levels { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+  .level-btn {
+    background: var(--card-bg); border: 3px solid #eee; padding: 10px 16px;
+    border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    color: var(--muted); min-height: 48px; font-family: inherit;
+  }
+  .level-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  .question {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 12px 0;
+  }
+  .prompt {
+    font-size: 5rem; font-weight: 800; letter-spacing: 0.05em;
+    margin-bottom: 40px; line-height: 1.1;
+  }
+  @media (max-width: 400px) { .prompt { font-size: 3.75rem; } }
+
+  .choices {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+    width: 100%; max-width: 480px;
+  }
+  .choice {
+    background: var(--card-bg); border: 4px solid transparent; padding: 24px 12px;
+    border-radius: 20px; font-size: 2.5rem; font-weight: 800; color: var(--text);
+    cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    min-height: 100px; font-family: inherit; transition: transform 0.08s ease;
+  }
+  .choice:active { transform: scale(0.97); }
+  .choice.correct { border-color: var(--correct); background: var(--correct-bg); }
+  .choice.wrong { border-color: var(--wrong); background: var(--wrong-bg); }
+  .choice:disabled { cursor: default; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .shake { animation: shake 0.3s; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">← Games</a>
+    <div class="score">Score:<strong id="score">0</strong></div>
+  </div>
+
+  <div class="levels" id="levels"></div>
+
+  <div class="question">
+    <div class="prompt" id="prompt">…</div>
+    <div class="choices" id="choices"></div>
+  </div>
+
+<script>
+  const GAME_ID = 'addition-basic';
+  const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
+
+  const LEVELS = [
+    { name: 'Level 1', gen: () => pair(0, 9, 0, 9) },
+    { name: 'Level 2', gen: () => pair(10, 99, 0, 9) },
+    { name: 'Level 3', gen: () => pair(10, 99, 10, 99) }
+  ];
+
+  function pair(lo1, hi1, lo2, hi2) {
+    const a = rand(lo1, hi1);
+    const b = rand(lo2, hi2);
+    return { a, b, answer: a + b };
+  }
+  function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+
+  function buildChoices(correct) {
+    const set = new Set([correct]);
+    let attempts = 0;
+    while (set.size < 4 && attempts < 200) {
+      attempts++;
+      const delta = rand(-5, 5);
+      if (delta === 0) continue;
+      const wrong = correct + delta;
+      if (wrong >= 0) set.add(wrong);
+    }
+    let fill = 0;
+    while (set.size < 4) { set.add(fill++); }
+    return [...set].sort(() => Math.random() - 0.5);
+  }
+
+  let level = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+  if (!Number.isInteger(level) || level < 0 || level >= LEVELS.length) level = 0;
+  let score = 0;
+  let current = null;
+  let locked = false;
+
+  const levelsEl = document.getElementById('levels');
+  const promptEl = document.getElementById('prompt');
+  const choicesEl = document.getElementById('choices');
+  const scoreEl = document.getElementById('score');
+
+  function renderLevels() {
+    levelsEl.innerHTML = '';
+    LEVELS.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.className = 'level-btn' + (i === level ? ' active' : '');
+      b.textContent = L.name;
+      b.addEventListener('click', () => {
+        if (i === level) return;
+        level = i;
+        try { localStorage.setItem(STORAGE_KEY, String(i)); } catch (e) {}
+        renderLevels();
+        nextQuestion();
+      });
+      levelsEl.appendChild(b);
+    });
+  }
+
+  function nextQuestion() {
+    locked = false;
+    current = LEVELS[level].gen();
+    promptEl.textContent = current.a + ' + ' + current.b;
+    const options = buildChoices(current.answer);
+    choicesEl.innerHTML = '';
+    options.forEach(ans => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.textContent = String(ans);
+      btn.addEventListener('click', () => choose(btn, ans));
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function choose(btn, ans) {
+    if (locked) return;
+    if (ans === current.answer) {
+      locked = true;
+      btn.classList.add('correct');
+      score++;
+      scoreEl.textContent = String(score);
+      setTimeout(nextQuestion, 650);
+    } else {
+      btn.classList.add('wrong', 'shake');
+      setTimeout(() => btn.classList.remove('shake'), 300);
+    }
+  }
+
+  renderLevels();
+  nextQuestion();
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Math Games</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --card-bg: #ffffff;
+    --text: #1a2233;
+    --muted: #6b7a90;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body { min-height: 100vh; padding: 32px 20px 40px; }
+  h1 { font-size: 2.5rem; margin: 0 0 6px; text-align: center; letter-spacing: -0.02em; }
+  .subtitle { text-align: center; color: var(--muted); margin: 0 0 32px; font-size: 1.1rem; }
+  .grid {
+    display: grid; gap: 16px; max-width: 900px; margin: 0 auto;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 600px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .tile {
+    display: block; background: var(--card-bg); border-radius: 20px;
+    padding: 24px; text-decoration: none; color: inherit;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    border: 3px solid transparent;
+    min-height: 140px;
+  }
+  .tile:active { transform: scale(0.98); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+  .tile .emoji { font-size: 3rem; line-height: 1; }
+  .tile .title { font-size: 1.5rem; font-weight: 700; margin: 12px 0 4px; }
+  .tile .desc { color: var(--muted); font-size: 1rem; margin: 0; }
+  .empty {
+    text-align: center; color: var(--muted); padding: 40px 20px;
+    background: var(--card-bg); border-radius: 20px; max-width: 500px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+  <h1>Math Games</h1>
+  <p class="subtitle">Pick a game to play</p>
+  <div class="grid" id="grid"></div>
+  <script>
+    // Registry of all games. Add a new entry here when adding a game.
+    const GAMES = [
+      {
+        id: 'addition-basic',
+        emoji: '➕',
+        title: 'Addition',
+        desc: 'Practice adding numbers',
+        file: 'games/addition-basic.html'
+      }
+    ];
+
+    const grid = document.getElementById('grid');
+    if (GAMES.length === 0) {
+      grid.outerHTML = '<div class="empty">No games yet. Add one in <code>games/</code> and register it in <code>index.html</code>.</div>';
+    } else {
+      for (const g of GAMES) {
+        const a = document.createElement('a');
+        a.className = 'tile';
+        a.href = g.file;
+        const emoji = document.createElement('div');
+        emoji.className = 'emoji';
+        emoji.textContent = g.emoji;
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = g.title;
+        const desc = document.createElement('p');
+        desc.className = 'desc';
+        desc.textContent = g.desc;
+        a.append(emoji, title, desc);
+        grid.appendChild(a);
+      }
+    }
+  </script>
+</body>
+</html>
