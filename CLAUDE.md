@@ -40,6 +40,7 @@ Show a level picker at the top of the game so the child can choose freely. Persi
 - Use the system font stack — no custom fonts.
 - No sound by default. If added later, include a persistent mute toggle.
 - Prefer multiple-choice (4 options) for younger levels. A numeric keypad works for advanced games where students should compute the answer directly.
+- **HUD width matches the play area.** If the play area is capped (e.g., `max-width: 500px`), constrain the topbar, level picker, and any status rows to the same width and center them (`margin-left: auto; margin-right: auto`). Otherwise on wide screens the score/back/legend/etc. drift to the viewport edges while the play area sits centered in the middle — visually disconnected. Everything HUD-related should sit next to the play area, not the window edges.
 
 ## Testing
 

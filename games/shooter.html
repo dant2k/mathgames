@@ -52,6 +52,16 @@
   }
   .equation .q { color: var(--accent); }
 
+  /* Keep the HUD rows aligned to the playfield width so on wide screens
+     the score / back / equation sit next to the playfield instead of
+     drifting to the far viewport edges. */
+  .topbar, .levels, .equation {
+    width: 100%;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .playfield {
     position: relative;
     width: 100%;

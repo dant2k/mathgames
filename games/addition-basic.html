@@ -42,6 +42,16 @@
   }
   .level-btn.active { border-color: var(--accent); color: var(--accent); }
 
+  /* Keep the HUD rows aligned to the play-area width so on wide screens
+     the score and back button sit next to the answer choices instead of
+     drifting to the far viewport edges. */
+  .topbar, .levels {
+    width: 100%;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .question {
     flex: 1; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; padding: 12px 0;
