@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Math Snake — Math Games</title>
+<style>
+  :root {
+    --bg: #eef8f0;
+    --panel: #ffffff;
+    --grid-bg: #d9ead9;
+    --accent: #2d7a3d;
+    --accent-light: #c9e5cf;
+    --text: #1a2233;
+    --muted: #6b7a90;
+    --correct: #4caf50;
+    --correct-bg: #d4f2d9;
+    --wrong: #ff6b6b;
+    --wrong-bg: #ffdada;
+    --pow2-bg: #fff3b0;
+    --pow2-border: #d1a915;
+    --pow2-text: #7a5900;
+    --pow3-bg: #ffcbe4;
+    --pow3-border: #d04591;
+    --pow3-text: #8a1f4d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overscroll-behavior: none;
+  }
+  body { min-height: 100vh; padding: 12px 16px 20px; display: flex; flex-direction: column; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+  .back {
+    color: var(--muted); text-decoration: none; font-size: 1.05rem;
+    padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,0.05);
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+
+  .legend { display: flex; gap: 12px; font-size: 0.85rem; color: var(--muted); font-weight: 700; }
+  .lg-item { display: inline-flex; align-items: center; gap: 5px; }
+  .lg-swatch {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 2px solid;
+  }
+  .lg-swatch.lg2 { background: var(--pow2-bg); border-color: var(--pow2-border); }
+  .lg-swatch.lg3 { background: var(--pow3-bg); border-color: var(--pow3-border); }
+
+  .levels { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .level-btn {
+    background: var(--panel); border: 3px solid #eee; padding: 8px 14px;
+    border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    color: var(--muted); min-height: 44px; font-family: inherit;
+  }
+  .level-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  .statusrow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 4px;
+  }
+  .stat {
+    font-size: 0.95rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .stat:first-child { text-align: left; }
+  .stat:last-child { text-align: right; }
+  .stat strong {
+    color: var(--accent);
+    font-size: 1.4rem;
+    margin: 0 3px;
+  }
+  #scoreStat { position: relative; }
+
+  .template {
+    text-align: center;
+    font-size: clamp(1.5rem, 7vw, 2.25rem);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    line-height: 1.1;
+    color: var(--text);
+    margin: 0;
+    min-width: 0;
+  }
+  .hint {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 4px 0 10px;
+  }
+
+  /* Keep the HUD rows aligned to the play-area edges (not the viewport
+     edges) so on wide screens the score / legend / counter sit right
+     next to the grid instead of drifting to the far sides. */
+  .topbar, .levels, .statusrow, .hint {
+    width: 100%;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .grid {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    aspect-ratio: 1 / 1;
+    background: var(--grid-bg);
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 0 auto;
+    touch-action: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+
+  .cell {
+    position: absolute;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel);
+    color: var(--text);
+    font-weight: 800;
+    border-radius: 8px;
+    border: 3px solid transparent;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    transition: top 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                left 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 200ms ease-out,
+                opacity 200ms ease-out,
+                background 150ms ease-out,
+                border-color 150ms ease-out;
+    pointer-events: none;
+  }
+  .cell.pow2 {
+    background: var(--pow2-bg);
+    color: var(--pow2-text);
+    border-color: var(--pow2-border);
+  }
+  .cell.pow3 {
+    background: var(--pow3-bg);
+    color: var(--pow3-text);
+    border-color: var(--pow3-border);
+  }
+  .cell.selected {
+    border-color: var(--accent) !important;
+    background: var(--accent-light) !important;
+    color: var(--text) !important;
+  }
+  .cell.match-good {
+    background: var(--correct-bg) !important;
+    border-color: var(--correct) !important;
+    color: var(--text) !important;
+  }
+  .cell.match-bad {
+    background: var(--wrong-bg) !important;
+    border-color: var(--wrong) !important;
+    color: var(--text) !important;
+  }
+  .cell.removing {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  .score-pop {
+    position: absolute;
+    top: 50%; left: 50%;
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+    font-weight: 800;
+    color: var(--accent);
+    pointer-events: none;
+    animation: pop 900ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+    text-shadow: 0 2px 8px rgba(255,255,255,0.9);
+    z-index: 5;
+    white-space: nowrap;
+  }
+  @keyframes pop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -110%) scale(1.4); opacity: 1; }
+    100% { transform: translate(-50%, -230%) scale(1); opacity: 0; }
+  }
+
+  .gameover {
+    position: absolute; inset: 0;
+    background: rgba(238, 248, 240, 0.95);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; padding: 20px;
+    z-index: 10;
+  }
+  .go-title { font-size: 1.75rem; font-weight: 800; color: var(--accent); text-align: center; }
+  .go-score { font-size: 1.25rem; color: var(--text); }
+  .go-btn {
+    background: var(--accent); color: white;
+    border: none; padding: 14px 28px;
+    border-radius: 14px; font-size: 1.1rem; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    min-height: 52px; min-width: 160px;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">← Games</a>
+    <div class="legend">
+      <span class="lg-item"><span class="lg-swatch lg2"></span>×2</span>
+      <span class="lg-item"><span class="lg-swatch lg3"></span>×3</span>
+    </div>
+  </div>
+
+  <div class="levels" id="levels"></div>
+
+  <div class="statusrow">
+    <div class="stat" id="scoreStat">Score<strong id="score">0</strong></div>
+    <div class="template" id="template">…</div>
+    <div class="stat"><strong id="remaining">0</strong>left</div>
+  </div>
+  <div class="hint">Drag through connected cells to build the equation</div>
+
+  <div class="grid" id="grid">
+    <div class="gameover" id="gameover" style="display:none">
+      <div class="go-title">No more matches!</div>
+      <div class="go-score">Score: <span id="finalScore">0</span></div>
+      <button class="go-btn" id="restart">Play again</button>
+    </div>
+  </div>
+
+<script>
+  const GAME_ID = 'sentence-draw';
+  const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
+  const GRID_SIZE = 8;
+  const POW3_PROB = 0.03;
+  const POW2_PROB = 0.07;
+
+  function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+
+  const LEVELS = [
+    {
+      name: 'Level 1',
+      parts: ['?', ' + ', '?', ' = ', '?'],
+      slotIndices: [0, 2, 4],
+      len: 3,
+      valMin: 0,
+      valMax: 9,
+      check: (v) => v[0] + v[1] === v[2]
+    },
+    {
+      name: 'Level 2',
+      parts: ['?', ' − ', '?', ' = ', '?'],
+      slotIndices: [0, 2, 4],
+      len: 3,
+      valMin: 0,
+      valMax: 9,
+      check: (v) => v[0] - v[1] === v[2]
+    }
+  ];
+
+  // State
+  let level = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+  if (!Number.isInteger(level) || level < 0 || level >= LEVELS.length) level = 0;
+  let score = 0;
+  let over = false;
+  let cellAt = [];
+  let cellW = 60, cellH = 60;
+  let gridW = 300, gridH = 300;
+  let dragStart = null;
+  let currentLine = [];
+  let evaluating = false;
+
+  const gridEl = document.getElementById('grid');
+  const templateEl = document.getElementById('template');
+  const scoreEl = document.getElementById('score');
+  const scoreStatEl = document.getElementById('scoreStat');
+  const remainingEl = document.getElementById('remaining');
+  const levelsEl = document.getElementById('levels');
+  const gameoverEl = document.getElementById('gameover');
+  const finalScoreEl = document.getElementById('finalScore');
+  const restartBtn = document.getElementById('restart');
+
+  function measure() {
+    gridW = gridEl.offsetWidth;
+    gridH = gridEl.offsetHeight;
+    cellW = gridW / GRID_SIZE;
+    cellH = gridH / GRID_SIZE;
+  }
+
+  function rollMult() {
+    const roll = Math.random();
+    if (roll < POW3_PROB) return 3;
+    if (roll < POW3_PROB + POW2_PROB) return 2;
+    return 1;
+  }
+
+  function createCell(r, c, value, mult) {
+    const el = document.createElement('div');
+    el.className = 'cell' + (mult === 2 ? ' pow2' : mult === 3 ? ' pow3' : '');
+    el.style.width = (cellW - 6) + 'px';
+    el.style.height = (cellH - 6) + 'px';
+    el.style.fontSize = Math.floor(cellH * 0.5) + 'px';
+    el.textContent = String(value);
+    gridEl.appendChild(el);
+    return { r, c, value, mult, el };
+  }
+
+  function positionCell(cell) {
+    cell.el.style.top = (cell.r * cellH + 3) + 'px';
+    cell.el.style.left = (cell.c * cellW + 3) + 'px';
+  }
+
+  function generateGridData() {
+    const [lo, hi] = [LEVELS[level].valMin, LEVELS[level].valMax];
+    const data = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+      const row = [];
+      for (let c = 0; c < GRID_SIZE; c++) row.push(rand(lo, hi));
+      data.push(row);
+    }
+    return data;
+  }
+
+  // Snake-path DFS. Counts distinct unordered cell-sets that form a
+  // length-N connected path whose values satisfy the equation in either
+  // reading direction. Two orderings of the same cells count once.
+  function countMatchesInData(data) {
+    const N = LEVELS[level].len;
+    const check = LEVELS[level].check;
+    const visited = Array.from({ length: GRID_SIZE }, () => new Array(GRID_SIZE).fill(false));
+    const path = [];
+    const found = new Set();
+    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+
+    function dfs() {
+      if (path.length === N) {
+        const vals = path.map(p => data[p.r][p.c]);
+        if (check(vals) || check(vals.slice().reverse())) {
+          const key = path.map(p => p.r * GRID_SIZE + p.c).slice().sort((a, b) => a - b).join(',');
+          found.add(key);
+        }
+        return;
+      }
+      const last = path[path.length - 1];
+      for (const [dr, dc] of dirs) {
+        const nr = last.r + dr, nc = last.c + dc;
+        if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) continue;
+        if (visited[nr][nc]) continue;
+        visited[nr][nc] = true;
+        path.push({ r: nr, c: nc });
+        dfs();
+        path.pop();
+        visited[nr][nc] = false;
+      }
+    }
+
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        visited[r][c] = true;
+        path.push({ r, c });
+        dfs();
+        path.pop();
+        visited[r][c] = false;
+      }
+    }
+    return found.size;
+  }
+
+  function currentGridData() {
+    const data = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+      const row = [];
+      for (let c = 0; c < GRID_SIZE; c++) row.push(cellAt[r][c] ? cellAt[r][c].value : NaN);
+      data.push(row);
+    }
+    return data;
+  }
+
+  function updateRemaining() {
+    const n = countMatchesInData(currentGridData());
+    remainingEl.textContent = String(n);
+    return n;
+  }
+
+  function newGame() {
+    score = 0;
+    updateScore();
+    over = false;
+    evaluating = false;
+    currentLine = [];
+    dragStart = null;
+    gameoverEl.style.display = 'none';
+    for (const row of cellAt) for (const cell of row) if (cell) cell.el.remove();
+    cellAt = [];
+    let data, attempts = 0;
+    do {
+      data = generateGridData();
+      attempts++;
+    } while (countMatchesInData(data) === 0 && attempts < 40);
+    for (let r = 0; r < GRID_SIZE; r++) {
+      const row = [];
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const cell = createCell(r, c, data[r][c], rollMult());
+        positionCell(cell);
+        row.push(cell);
+      }
+      cellAt.push(row);
+    }
+    renderTemplate();
+    updateRemaining();
+  }
+
+  function renderTemplate() {
+    const L = LEVELS[level];
+    const parts = L.parts.slice();
+    for (let i = 0; i < currentLine.length && i < L.slotIndices.length; i++) {
+      const p = currentLine[i];
+      const cell = cellAt[p.r] && cellAt[p.r][p.c];
+      if (cell) parts[L.slotIndices[i]] = String(cell.value);
+    }
+    templateEl.textContent = parts.join('');
+  }
+
+  function pointerToCell(clientX, clientY) {
+    const rect = gridEl.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const c = Math.floor(x / cellW);
+    const r = Math.floor(y / cellH);
+    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return null;
+    return { r, c };
+  }
+
+  function isAdjacent(a, b) {
+    const dr = Math.abs(a.r - b.r);
+    const dc = Math.abs(a.c - b.c);
+    return (dr === 0 && dc === 1) || (dr === 1 && dc === 0);
+  }
+
+  function highlightLine() {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const cell = cellAt[r] && cellAt[r][c];
+        if (cell) cell.el.classList.remove('selected');
+      }
+    }
+    for (const p of currentLine) {
+      const cell = cellAt[p.r] && cellAt[p.r][p.c];
+      if (cell) cell.el.classList.add('selected');
+    }
+    renderTemplate();
+  }
+
+  function tryAdvancePath(target) {
+    const last = currentLine[currentLine.length - 1];
+    if (last.r === target.r && last.c === target.c) return;
+
+    if (currentLine.length >= 2) {
+      const prev = currentLine[currentLine.length - 2];
+      if (prev.r === target.r && prev.c === target.c) {
+        currentLine.pop();
+        highlightLine();
+        return;
+      }
+    }
+
+    for (const p of currentLine) {
+      if (p.r === target.r && p.c === target.c) return;
+    }
+
+    if (currentLine.length >= LEVELS[level].len) return;
+    if (!isAdjacent(last, target)) return;
+    currentLine.push(target);
+    highlightLine();
+  }
+
+  function evaluateLine() {
+    const L = LEVELS[level];
+    if (currentLine.length !== L.len) {
+      currentLine = [];
+      highlightLine();
+      return;
+    }
+    const vals = currentLine.map(p => cellAt[p.r][p.c].value);
+    const forward = L.check(vals);
+    const reverse = L.check(vals.slice().reverse());
+    if (forward || reverse) {
+      evaluating = true;
+      const cells = currentLine.map(p => cellAt[p.r][p.c]);
+      let mult = 1;
+      for (const cell of cells) if (cell.mult && cell.mult > 1) mult *= cell.mult;
+      score += mult;
+      updateScore();
+      showFloatingScore(mult);
+      for (const cell of cells) cell.el.classList.add('match-good');
+      setTimeout(() => {
+        for (const cell of cells) cell.el.classList.add('removing');
+        setTimeout(() => {
+          for (const p of currentLine) {
+            const cell = cellAt[p.r][p.c];
+            if (cell) { cell.el.remove(); cellAt[p.r][p.c] = null; }
+          }
+          collapseAndFill();
+          currentLine = [];
+          renderTemplate();
+          const remaining = updateRemaining();
+          if (remaining === 0) {
+            setTimeout(gameOver, 500);
+          }
+          evaluating = false;
+        }, 220);
+      }, 260);
+    } else {
+      evaluating = true;
+      const cells = currentLine.map(p => cellAt[p.r][p.c]);
+      for (const cell of cells) cell.el.classList.add('match-bad');
+      setTimeout(() => {
+        for (const cell of cells) {
+          cell.el.classList.remove('match-bad');
+          cell.el.classList.remove('selected');
+        }
+        currentLine = [];
+        renderTemplate();
+        evaluating = false;
+      }, 420);
+    }
+  }
+
+  function collapseAndFill() {
+    const [lo, hi] = [LEVELS[level].valMin, LEVELS[level].valMax];
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const alive = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (cellAt[r][c]) alive.push(cellAt[r][c]);
+      }
+      const shift = GRID_SIZE - alive.length;
+      for (let r = 0; r < GRID_SIZE; r++) cellAt[r][c] = null;
+      for (let i = 0; i < alive.length; i++) {
+        const cell = alive[i];
+        cell.r = i + shift;
+        cellAt[cell.r][c] = cell;
+      }
+      for (let r = 0; r < shift; r++) {
+        const cell = createCell(r, c, rand(lo, hi), rollMult());
+        cell.el.style.transition = 'none';
+        cell.el.style.top = ((r - shift) * cellH + 3) + 'px';
+        cell.el.style.left = (c * cellW + 3) + 'px';
+        cellAt[r][c] = cell;
+      }
+    }
+    gridEl.getBoundingClientRect();
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const cell = cellAt[r][c];
+        if (cell) {
+          cell.el.style.transition = '';
+          positionCell(cell);
+        }
+      }
+    }
+  }
+
+  function updateScore() { scoreEl.textContent = String(score); }
+
+  function showFloatingScore(mult) {
+    const el = document.createElement('div');
+    el.className = 'score-pop';
+    el.textContent = '+' + mult;
+    if (mult >= 3) el.style.color = 'var(--pow3-border)';
+    else if (mult === 2) el.style.color = 'var(--pow2-border)';
+    scoreStatEl.appendChild(el);
+    setTimeout(() => el.remove(), 950);
+  }
+
+  function gameOver() {
+    over = true;
+    finalScoreEl.textContent = String(score);
+    gameoverEl.style.display = 'flex';
+  }
+
+  function onDown(e) {
+    if (over || evaluating) return;
+    const cell = pointerToCell(e.clientX, e.clientY);
+    if (!cell) return;
+    dragStart = cell;
+    currentLine = [cell];
+    highlightLine();
+    try { gridEl.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+
+  function onMove(e) {
+    if (over || evaluating || !dragStart) return;
+    const cell = pointerToCell(e.clientX, e.clientY);
+    if (!cell) return;
+    tryAdvancePath(cell);
+  }
+
+  function onUp() {
+    if (over || evaluating || !dragStart) return;
+    dragStart = null;
+    evaluateLine();
+  }
+
+  function onCancel() {
+    if (dragStart) {
+      dragStart = null;
+      currentLine = [];
+      highlightLine();
+    }
+  }
+
+  function renderLevels() {
+    levelsEl.innerHTML = '';
+    LEVELS.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.className = 'level-btn' + (i === level ? ' active' : '');
+      b.textContent = L.name;
+      b.addEventListener('click', () => {
+        if (i === level || evaluating) return;
+        level = i;
+        try { localStorage.setItem(STORAGE_KEY, String(i)); } catch (err) {}
+        renderLevels();
+        newGame();
+      });
+      levelsEl.appendChild(b);
+    });
+  }
+
+  gridEl.addEventListener('pointerdown', onDown);
+  gridEl.addEventListener('pointermove', onMove);
+  gridEl.addEventListener('pointerup', onUp);
+  gridEl.addEventListener('pointercancel', onCancel);
+  restartBtn.addEventListener('click', () => newGame());
+
+  window.addEventListener('resize', () => {
+    measure();
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const cell = cellAt[r] && cellAt[r][c];
+        if (cell) {
+          cell.el.style.width = (cellW - 6) + 'px';
+          cell.el.style.height = (cellH - 6) + 'px';
+          cell.el.style.fontSize = Math.floor(cellH * 0.5) + 'px';
+          positionCell(cell);
+        }
+      }
+    }
+  });
+
+  renderLevels();
+  requestAnimationFrame(() => {
+    measure();
+    newGame();
+  });
+</script>
+</body>
+</html>

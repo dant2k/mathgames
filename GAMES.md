@@ -102,12 +102,30 @@ Implementation notes:
 ---
 ## sentence-draw
 
-* Status: planned
+* Status: built
 * Title: Math Snake
-* Emoji: Unknown
-* Accent Color: forest green
+* Emoji: 🐍
+* Accent Color: forest green (`#2d7a3d`)
 
 This game provides a grid of numbers that the user can draw axis aligned lines across to create sequences. The top of play are provides a template for the math equation to be created, using blank spaces, operations, and the equals sign. So for example, the top might show __ + __ = __ meaning the player draws a line connecting three numbers where the first two must sum to the last. If the line drawn is valid, the numbers are deleted from the grid and numbers above fall down to take their space with new numbers appearing from above. Play continues until no match can be found.
+
+Implementation notes:
+  - Grid: 8×8. Cells positioned absolutely so they can animate falls with CSS transitions.
+  - Line interpretation: **snake path** — pointerdown on any cell starts a path, drag onto an orthogonally adjacent cell to extend, drag back onto the previous cell to shrink, drag onto a non-adjacent cell does nothing. The path can turn corners. Caps at the template length. Release evaluates.
+  - Line reads in either direction — dragging in either order counts if the numbers satisfy the equation.
+  - Template display fills in numbers as the player drags (`? + ? = ?` → `5 + ? = ?` → `5 + 3 = ?` → `5 + 3 = 8`), so the child sees the equation build in real time.
+  - **Powerup cells** (rare): on each new cell spawn, there's a 3% chance the cell is a 3× powerup (pink) and a 7% chance it's a 2× powerup (yellow). If a matched path passes through any powerup cells, the match's points are the product of their multipliers (e.g., 2× and 3× in the same match → 6 points). A floating `+N` pops up at the last cell of the match. The multiplier is conveyed by cell color only — a small legend in the topbar shows what each color means (no per-cell `×2`/`×3` badge, to keep the number itself readable).
+  - **HUD layout**: score, equation template, and remaining-match count share a single row above the grid: `Score 5   [ ? + ? = ? ]   12 left`. This makes the score visible right next to the equation as it changes, and the "left" count updates after every collapse so the child can see how many matches remain.
+  - Collapse: on a match, matched cells fade out; remaining cells fall to the bottom of their columns; new random cells spawn above the grid and fall in. New cells re-roll powerup status.
+  - Game-over detection: DFS over connected paths of the template length across the grid — if none satisfy the equation (in either direction), show the overlay.
+  - New-game grid guaranteed to contain at least one match (retries generation up to 40 times).
+  - Levels:
+    - L1 — `? + ? = ?`, cell values 0–9
+    - L2 — `? − ? = ?`, cell values 0–9
+
+Follow-ups worth considering:
+  - L3+ (three-addend `? + ? + ? = ?`, larger numbers, or multiplication)
+  - Legend/tutorial for powerup colors (currently color-only — kid learns by seeing score jump)
 
 ---
 
