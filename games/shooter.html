@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Math Shooter — Math Games</title>
+<style>
+  :root {
+    --bg: #17093a;
+    --panel: #26124d;
+    --playfield: #0d0520;
+    --accent: #c084fc;
+    --text: #f4f0ff;
+    --muted: #a89cc6;
+    --correct: #58e089;
+    --wrong: #ff7b8a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overscroll-behavior: none;
+  }
+  body { min-height: 100vh; padding: 12px 16px 20px; display: flex; flex-direction: column; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .back {
+    color: var(--muted); text-decoration: none; font-size: 1.05rem;
+    padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.08);
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .score { font-size: 1.05rem; color: var(--muted); }
+  .score strong { color: var(--accent); font-size: 1.4rem; margin-left: 4px; }
+
+  .levels { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .level-btn {
+    background: var(--panel); border: 3px solid transparent; padding: 8px 14px;
+    border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    color: var(--muted); min-height: 44px; font-family: inherit;
+  }
+  .level-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  .equation {
+    text-align: center;
+    font-size: clamp(1.75rem, 8vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    margin: 6px 0 10px;
+    line-height: 1.1;
+  }
+  .equation .q { color: var(--accent); }
+
+  .playfield {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    aspect-ratio: 5 / 7;
+    background: var(--playfield);
+    border-radius: 20px;
+    overflow: hidden;
+    margin: 0 auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    touch-action: manipulation;
+    cursor: crosshair;
+  }
+
+  .tile {
+    position: absolute;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #17093a;
+    border-radius: 10px;
+    transition: left 200ms ease-out, top 200ms ease-out, opacity 200ms ease-out, transform 200ms ease-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    pointer-events: none;
+  }
+  .tile.hit-correct { background: var(--correct) !important; transform: scale(1.25); opacity: 0; }
+  .tile.hit-wrong { background: var(--wrong) !important; transform: scale(0.6); opacity: 0; }
+
+  .aim-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(192, 132, 252, 0.1);
+    transition: left 200ms ease-out;
+    pointer-events: none;
+  }
+
+  .ship {
+    position: absolute;
+    bottom: 12px;
+    width: 42px; height: 42px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    transform: translateX(-50%);
+    transition: left 120ms ease-out;
+    pointer-events: none;
+    filter: drop-shadow(0 0 8px var(--accent));
+  }
+
+  .projectile {
+    position: absolute;
+    width: 5px; height: 18px;
+    background: var(--accent);
+    border-radius: 3px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
+    pointer-events: none;
+  }
+
+  .gameover {
+    position: absolute; inset: 0;
+    background: rgba(13, 5, 32, 0.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px; padding: 20px;
+  }
+  .go-title { font-size: 2rem; font-weight: 800; color: var(--accent); }
+  .go-score { font-size: 1.25rem; color: var(--text); }
+  .go-btn {
+    background: var(--accent); color: #17093a;
+    border: none; padding: 14px 28px;
+    border-radius: 14px; font-size: 1.1rem; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    min-height: 52px; min-width: 160px;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">← Games</a>
+    <div class="score">Score:<strong id="score">0</strong></div>
+  </div>
+
+  <div class="levels" id="levels"></div>
+
+  <div class="equation" id="equation">…</div>
+
+  <div class="playfield" id="playfield">
+    <div id="aimlines"></div>
+    <div class="ship" id="ship"></div>
+    <div class="gameover" id="gameover" style="display:none">
+      <div class="go-title">Game Over</div>
+      <div class="go-score">Score: <span id="finalScore">0</span></div>
+      <button class="go-btn" id="restart">Play again</button>
+    </div>
+  </div>
+
+<script>
+  const GAME_ID = 'shooter';
+  const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
+  const COLS = 6;
+  const ROWS = 4;
+  const ROW_COLORS = ['#ff8fa3', '#ffb47a', '#ffe66d', '#8ef27a'];
+  const SHIP_ZONE = 66; // bottom pixels reserved for ship + danger line
+  const ADVANCE_STEP_FRAC = 0.5; // slide step as fraction of cellW
+  const ADVANCE_MS = 220;
+
+  function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+
+  const LEVELS = [
+    {
+      name: 'Level 1',
+      range: [0, 18],
+      gen: (t) => genAdd(t, 9)
+    },
+    {
+      name: 'Level 2',
+      range: [0, 18],
+      gen: (t) => (Math.random() < 0.5 && t <= 9) ? genSub(t, 9) : genAdd(t, 9)
+    },
+    {
+      name: 'Level 3',
+      range: [0, 40],
+      gen: (t) => (Math.random() < 0.5) ? genSubUpTo(t, 30, 60) : genAddUpTo(t, 30)
+    }
+  ];
+
+  function genAdd(target, maxTerm) {
+    const lo = Math.max(0, target - maxTerm);
+    const hi = Math.min(maxTerm, target);
+    const a = rand(lo, hi);
+    return { text: a + ' + ' + (target - a), answer: target };
+  }
+  function genSub(target, maxTerm) {
+    const b = rand(0, Math.max(0, maxTerm - target));
+    const a = target + b;
+    return { text: a + ' − ' + b, answer: target };
+  }
+  function genAddUpTo(target, maxTerm) {
+    const lo = Math.max(0, target - maxTerm);
+    const hi = Math.min(maxTerm, target);
+    if (lo > hi) return genAdd(target, target); // safety fallback
+    const a = rand(lo, hi);
+    return { text: a + ' + ' + (target - a), answer: target };
+  }
+  function genSubUpTo(target, maxB, maxA) {
+    const bMax = Math.max(0, Math.min(maxB, maxA - target));
+    const b = rand(0, bMax);
+    const a = target + b;
+    return { text: a + ' − ' + b, answer: target };
+  }
+
+  // State
+  let level = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+  if (!Number.isInteger(level) || level < 0 || level >= LEVELS.length) level = 0;
+  let score = 0;
+  let tiles = []; // [col][row] of { value, alive, el }
+  let formationX = 0, formationY = 0, formationDir = 1;
+  let cellW = 50, cellH = 45;
+  let pfW = 0, pfH = 0;
+  let currentEquation = null;
+  let firing = false;
+  let over = false;
+  let shipX = 0;
+
+  const playfield = document.getElementById('playfield');
+  const ship = document.getElementById('ship');
+  const equationEl = document.getElementById('equation');
+  const scoreEl = document.getElementById('score');
+  const levelsEl = document.getElementById('levels');
+  const gameoverEl = document.getElementById('gameover');
+  const finalScoreEl = document.getElementById('finalScore');
+  const restartBtn = document.getElementById('restart');
+  const aimlinesEl = document.getElementById('aimlines');
+  const aimlines = [];
+
+  function measure() {
+    pfW = playfield.offsetWidth;
+    pfH = playfield.offsetHeight;
+    cellW = Math.floor((pfW * 0.86) / COLS);
+    cellH = Math.floor(cellW * 0.85);
+  }
+
+  function fillGrid() {
+    // Remove existing tile elements
+    for (const col of tiles) for (const t of col) if (t.el) t.el.remove();
+    tiles = [];
+    const [lo, hi] = LEVELS[level].range;
+    for (let c = 0; c < COLS; c++) {
+      const col = [];
+      for (let r = 0; r < ROWS; r++) {
+        const t = { value: rand(lo, hi), alive: true, el: null };
+        const el = document.createElement('div');
+        el.className = 'tile';
+        el.style.background = ROW_COLORS[r % ROW_COLORS.length];
+        el.textContent = String(t.value);
+        playfield.appendChild(el);
+        t.el = el;
+        col.push(t);
+      }
+      tiles.push(col);
+    }
+    formationX = Math.floor((pfW - cellW * COLS) / 2);
+    formationY = 20;
+    formationDir = 1;
+    renderTiles();
+  }
+
+  function renderTiles() {
+    for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < ROWS; r++) {
+        const t = tiles[c][r];
+        if (!t.alive) continue;
+        const x = formationX + c * cellW + 4;
+        const y = formationY + r * cellH + 4;
+        t.el.style.left = x + 'px';
+        t.el.style.top = y + 'px';
+        t.el.style.width = (cellW - 8) + 'px';
+        t.el.style.height = (cellH - 8) + 'px';
+        t.el.style.fontSize = Math.floor(cellH * 0.5) + 'px';
+      }
+    }
+    renderAimlines();
+  }
+
+  function buildAimlines() {
+    aimlinesEl.innerHTML = '';
+    aimlines.length = 0;
+    for (let i = 0; i <= COLS; i++) {
+      const el = document.createElement('div');
+      el.className = 'aim-line';
+      aimlinesEl.appendChild(el);
+      aimlines.push(el);
+    }
+  }
+
+  function renderAimlines() {
+    for (let i = 0; i <= COLS; i++) {
+      aimlines[i].style.left = (formationX + i * cellW) + 'px';
+    }
+  }
+
+  function getBottomMost() {
+    const arr = [];
+    for (let c = 0; c < COLS; c++) {
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (tiles[c][r].alive) {
+          arr.push({ col: c, row: r, value: tiles[c][r].value });
+          break;
+        }
+      }
+    }
+    return arr;
+  }
+
+  function newEquation() {
+    const bottoms = getBottomMost();
+    if (bottoms.length === 0) {
+      // Wave cleared — refill and continue.
+      fillGrid();
+      return newEquation();
+    }
+    const pick = bottoms[rand(0, bottoms.length - 1)];
+    currentEquation = LEVELS[level].gen(pick.value);
+    equationEl.innerHTML = currentEquation.text + ' = <span class="q">?</span>';
+  }
+
+  function updateScore() { scoreEl.textContent = String(score); }
+
+  function positionShipCentered() {
+    shipX = pfW / 2;
+    ship.style.left = shipX + 'px';
+  }
+
+  function fire(clientX) {
+    if (firing || over) return;
+    firing = true;
+    const rect = playfield.getBoundingClientRect();
+    let x = clientX - rect.left;
+    x = Math.max(cellW / 2, Math.min(pfW - cellW / 2, x));
+    shipX = x;
+    ship.style.left = shipX + 'px';
+
+    // Determine target column & bottom-most alive tile
+    const targetCol = Math.floor((shipX - formationX) / cellW);
+    let hit = null;
+    if (targetCol >= 0 && targetCol < COLS) {
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (tiles[targetCol][r].alive) { hit = { col: targetCol, row: r }; break; }
+      }
+    }
+
+    // Animate projectile from just above ship up to target (or off top)
+    const proj = document.createElement('div');
+    proj.className = 'projectile';
+    const startY = pfH - SHIP_ZONE;
+    const targetY = hit ? (formationY + hit.row * cellH + cellH / 2) : -30;
+    proj.style.left = shipX + 'px';
+    proj.style.top = startY + 'px';
+    playfield.appendChild(proj);
+    // Force reflow before setting transition target
+    void proj.offsetWidth;
+    const distance = Math.abs(startY - targetY);
+    const duration = Math.max(140, Math.min(380, distance * 0.9));
+    proj.style.transition = 'top ' + duration + 'ms linear';
+    proj.style.top = targetY + 'px';
+
+    setTimeout(() => {
+      proj.remove();
+      resolveShot(hit);
+    }, duration + 10);
+  }
+
+  function resolveShot(hit) {
+    if (hit) {
+      const t = tiles[hit.col][hit.row];
+      t.alive = false;
+      if (t.value === currentEquation.answer) {
+        score++;
+        t.el.classList.add('hit-correct');
+      } else {
+        score--;
+        t.el.classList.add('hit-wrong');
+      }
+      updateScore();
+    }
+    advance();
+    if (checkGameOver()) {
+      firing = false;
+      showGameOver();
+      return;
+    }
+    setTimeout(() => {
+      firing = false;
+      if (!over) newEquation();
+    }, ADVANCE_MS);
+  }
+
+  function advance() {
+    // Determine occupied column bounds
+    let left = -1, right = -1;
+    for (let c = 0; c < COLS; c++) {
+      if (tiles[c].some(t => t.alive)) {
+        if (left < 0) left = c;
+        right = c;
+      }
+    }
+    if (left < 0) { renderTiles(); return; }
+    const step = Math.max(6, Math.floor(cellW * ADVANCE_STEP_FRAC));
+    const proposedX = formationX + formationDir * step;
+    const leftEdge = proposedX + left * cellW;
+    const rightEdge = proposedX + (right + 1) * cellW;
+    if (leftEdge < 0 || rightEdge > pfW) {
+      // Hit wall: drop and reverse (skip lateral this step)
+      formationY += cellH;
+      formationDir = -formationDir;
+    } else {
+      formationX = proposedX;
+    }
+    renderTiles();
+  }
+
+  function checkGameOver() {
+    const dangerY = pfH - SHIP_ZONE;
+    for (let c = 0; c < COLS; c++) {
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (tiles[c][r].alive) {
+          const bottomY = formationY + (r + 1) * cellH;
+          if (bottomY >= dangerY) return true;
+          break;
+        }
+      }
+    }
+    return false;
+  }
+
+  function showGameOver() {
+    over = true;
+    finalScoreEl.textContent = String(score);
+    gameoverEl.style.display = 'flex';
+  }
+
+  function restart() {
+    score = 0;
+    updateScore();
+    over = false;
+    gameoverEl.style.display = 'none';
+    measure();
+    positionShipCentered();
+    fillGrid();
+    newEquation();
+  }
+
+  function renderLevels() {
+    levelsEl.innerHTML = '';
+    LEVELS.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.className = 'level-btn' + (i === level ? ' active' : '');
+      b.textContent = L.name;
+      b.addEventListener('click', () => {
+        if (i === level) return;
+        level = i;
+        try { localStorage.setItem(STORAGE_KEY, String(i)); } catch (e) {}
+        renderLevels();
+        restart();
+      });
+      levelsEl.appendChild(b);
+    });
+  }
+
+  // Any tap in the playfield fires (more forgiving for young kids than a
+  // strict lower-portion rule; the ship still moves to the tap x).
+  playfield.addEventListener('pointerdown', (e) => {
+    if (over) return;
+    fire(e.clientX);
+  });
+
+  restartBtn.addEventListener('click', restart);
+
+  window.addEventListener('resize', () => {
+    const oldPfW = pfW;
+    measure();
+    // Keep formation roughly centered horizontally on resize
+    if (oldPfW > 0) formationX = Math.round(formationX * (pfW / oldPfW));
+    formationX = Math.max(0, Math.min(formationX, pfW - COLS * cellW));
+    renderTiles();
+    shipX = Math.max(cellW / 2, Math.min(pfW - cellW / 2, (shipX / (oldPfW || pfW)) * pfW));
+    ship.style.left = shipX + 'px';
+  });
+
+  renderLevels();
+  // Wait for layout before measuring
+  requestAnimationFrame(() => {
+    measure();
+    buildAimlines();
+    positionShipCentered();
+    fillGrid();
+    newEquation();
+  });
+</script>
+</body>
+</html>

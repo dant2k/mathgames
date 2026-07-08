@@ -80,6 +80,36 @@ Notes:
   - Answer choices shuffled every question.
 
 ---
+## shooter
+* Status: built
+* Title: Math Shooter
+* Emoji: 🚀
+* Accent Color: purple (`#c084fc`)
+
+This game is designed off of the classic space invaders game where the invaders are numbers. Numbers should come down in a grid from the top centered in the gameplay area. Along the bottom is a space ship icon. Tapping in the lower portion of the gameplay area moves the ship to the horizontal component of the touch location and shoots an animated projectile up and impacts a number. The numbers are possible answers to a basic math equation that's at the very top of the gameplay area, above where the numbers start to come down. After each shot has impacted or gone off the top of the play area, the numbers 'advance' in classic space invaders fashion, sliding to one side until they reach the edge before moving down one row then switching the slide direction. Once they reach the bottom, the game is over. The score is based on successful hits vs misses or wrong answers. Wrong answers subtract a point, correct answers add a point, misses do nothing. The equation changes after each shot, and should always be answerable with a shot (i.e. be one of the bottom most numbers in each column).
+
+Implementation notes:
+  - Grid: 6 columns × 4 rows. Ship is a CSS triangle (not an emoji, to avoid cross-platform rotation differences).
+  - Tap zone: tap anywhere in the playfield to fire (more forgiving than a strict lower-portion rule). Ship still slides to the tap x.
+  - Wave clear: if the player shoots down every tile, the grid silently refills and play continues.
+  - Levels:
+    - L1 — single-digit addition; tile values 0–18
+    - L2 — mixed single-digit +/−; tile values 0–18
+    - L3 — mixed +/− with terms up to 30 (may involve carry/borrow); tile values 0–40
+  - Equation generation is target-first: pick a random bottom-most tile, then generate a level-appropriate equation whose answer equals it. Guarantees the invariant that the current equation is always answerable.
+  - Game over shows an overlay with final score and a "Play again" button.
+
+---
+## sentence-draw
+
+* Status: planned
+* Title: Math Snake
+* Emoji: Unknown
+* Accent Color: forest green
+
+This game provides a grid of numbers that the user can draw axis aligned lines across to create sequences. The top of play are provides a template for the math equation to be created, using blank spaces, operations, and the equals sign. So for example, the top might show __ + __ = __ meaning the player draws a line connecting three numbers where the first two must sum to the last. If the line drawn is valid, the numbers are deleted from the grid and numbers above fall down to take their space with new numbers appearing from above. Play continues until no match can be found.
+
+---
 
 ## subtraction-basic
 
