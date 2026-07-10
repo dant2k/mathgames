@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Read the Clock — Math Games</title>
+<style>
+  :root {
+    --bg: #e8faf3;
+    --card-bg: #ffffff;
+    --accent: #26c6a4;
+    --accent-strong: #1a9e80;
+    --text: #1a2233;
+    --muted: #6b7a90;
+    --correct: #4caf50;
+    --correct-bg: #eaffea;
+    --wrong: #ff6b6b;
+    --wrong-bg: #ffecec;
+    --face-stroke: #cfd8e3;
+    --tick: #566574;
+    --hour-hand: #1a2233;
+    --minute-hand: #1a9e80;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body { min-height: 100vh; padding: 16px 20px 24px; display: flex; flex-direction: column; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .back {
+    color: var(--muted); text-decoration: none; font-size: 1.05rem;
+    padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,0.04);
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .score { font-size: 1.05rem; color: var(--muted); }
+  .score strong { color: var(--accent-strong); font-size: 1.4rem; margin-left: 4px; }
+
+  .levels { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .level-btn {
+    background: var(--card-bg); border: 3px solid #eee; padding: 10px 16px;
+    border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    color: var(--muted); min-height: 48px; font-family: inherit;
+  }
+  .level-btn.active { border-color: var(--accent); color: var(--accent-strong); }
+
+  .topbar, .levels, .prompt, .clock-wrap, .selectors, .actions {
+    width: 100%; max-width: 420px;
+    margin-left: auto; margin-right: auto;
+  }
+
+  .prompt {
+    text-align: center; color: var(--muted); font-size: 1.05rem;
+    margin-bottom: 4px;
+  }
+
+  .clock-wrap { margin: 10px auto; }
+  .clock {
+    width: 100%; height: auto; display: block;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.09));
+  }
+  .face { fill: #ffffff; stroke: var(--face-stroke); stroke-width: 1.5; transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s; }
+  .tick { stroke: var(--tick); }
+  .tick.major { stroke-width: 2; }
+  .tick.minor { stroke-width: 0.6; opacity: 0.7; }
+  .number {
+    fill: var(--text); font-size: 15px; font-weight: 700;
+    text-anchor: middle; dominant-baseline: central;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .hour-hand line { stroke: var(--hour-hand); stroke-width: 6.5; stroke-linecap: round; }
+  .minute-hand line { stroke: var(--minute-hand); stroke-width: 4; stroke-linecap: round; }
+  .pivot { fill: var(--hour-hand); }
+
+  .clock.correct .face { stroke: var(--correct); stroke-width: 4; fill: var(--correct-bg); }
+  .clock.wrong .face { stroke: var(--wrong); stroke-width: 4; fill: var(--wrong-bg); }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .clock-wrap.shake { animation: shake 0.35s; }
+
+  .selectors {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; margin: 16px auto 12px;
+  }
+  .picker {
+    background: var(--card-bg); border: 3px solid #eee;
+    border-radius: 16px; padding: 10px 6px;
+    min-width: 76px; min-height: 92px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: inherit; cursor: pointer;
+    transition: transform 0.08s;
+  }
+  .picker:active { transform: scale(0.96); }
+  .picker-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .picker-value {
+    font-size: 2.4rem; font-weight: 800; color: #b6c1d0;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .picker.set { border-color: var(--accent); }
+  .picker.set .picker-value { color: var(--text); }
+  .sep {
+    font-size: 2.4rem; font-weight: 800; color: var(--text); margin: 24px 2px 0;
+  }
+
+  .actions { display: flex; justify-content: center; margin-top: 4px; }
+  .check {
+    background: var(--accent); color: #fff; border: none;
+    padding: 16px 32px; border-radius: 16px; font-size: 1.3rem; font-weight: 800;
+    min-height: 64px; font-family: inherit; cursor: pointer; letter-spacing: 0.02em;
+    box-shadow: 0 4px 12px rgba(38, 198, 164, 0.35);
+    width: 100%; max-width: 300px;
+  }
+  .check:active { transform: scale(0.98); }
+  .check:disabled {
+    background: #cfd8e3; box-shadow: none; cursor: default; color: #ffffff;
+  }
+
+  .popup-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+  }
+  .popup-backdrop[hidden] { display: none; }
+  .popup {
+    background: var(--card-bg);
+    border-radius: 22px;
+    padding: 22px 20px 14px;
+    width: 100%; max-width: 360px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+  }
+  .popup-title {
+    text-align: center; color: var(--muted);
+    font-size: 1rem; margin-bottom: 14px;
+  }
+  .popup-grid {
+    display: grid; gap: 8px;
+  }
+  .popup-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .popup-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+  .popup-btn {
+    background: var(--card-bg);
+    border: 3px solid #eee;
+    border-radius: 14px;
+    min-height: 60px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.08s, background 0.1s, border-color 0.1s;
+  }
+  .popup-btn:active {
+    transform: scale(0.96);
+    border-color: var(--accent);
+    background: var(--correct-bg);
+  }
+  .popup-cancel {
+    margin-top: 10px; width: 100%;
+    background: transparent; border: none;
+    color: var(--muted); font-size: 1rem; font-weight: 700;
+    padding: 10px; cursor: pointer; font-family: inherit;
+    min-height: 44px;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">← Games</a>
+    <div class="score">Score:<strong id="score">0</strong></div>
+  </div>
+
+  <div class="levels" id="levels"></div>
+
+  <div class="prompt">What time does the clock show?</div>
+
+  <div class="clock-wrap" id="clockWrap">
+    <svg id="clock" class="clock" viewBox="-100 -100 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle class="face" cx="0" cy="0" r="98"/>
+      <g id="ticks"></g>
+      <g id="numbers"></g>
+      <g id="minuteHand" class="minute-hand"><line x1="0" y1="0" x2="0" y2="-82"/></g>
+      <g id="hourHand" class="hour-hand"><line x1="0" y1="0" x2="0" y2="-52"/></g>
+      <circle class="pivot" cx="0" cy="0" r="4.5"/>
+    </svg>
+  </div>
+
+  <div class="selectors">
+    <button class="picker" id="pickerHour" type="button">
+      <span class="picker-label">Hour</span>
+      <span class="picker-value" id="valHour">?</span>
+    </button>
+    <span class="sep">:</span>
+    <button class="picker" id="pickerTens" type="button">
+      <span class="picker-label">Tens</span>
+      <span class="picker-value" id="valTens">?</span>
+    </button>
+    <button class="picker" id="pickerOnes" type="button">
+      <span class="picker-label">Ones</span>
+      <span class="picker-value" id="valOnes">?</span>
+    </button>
+  </div>
+
+  <div class="actions">
+    <button id="check" class="check" disabled>Check</button>
+  </div>
+
+  <div class="popup-backdrop" id="popupBackdrop" hidden>
+    <div class="popup" id="popup">
+      <div class="popup-title" id="popupTitle">Pick</div>
+      <div class="popup-grid" id="popupGrid"></div>
+      <button class="popup-cancel" id="popupCancel" type="button">Cancel</button>
+    </div>
+  </div>
+
+<script>
+  const GAME_ID = 'clock-read';
+  const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const LEVELS = [
+    { name: 'Level 1', granularity: 15 },
+    { name: 'Level 2', granularity: 5 },
+    { name: 'Level 3', granularity: 1 }
+  ];
+
+  function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+
+  function genTime(gran) {
+    const hour = rand(1, 12);
+    const steps = 60 / gran;
+    const minute = rand(0, steps - 1) * gran;
+    return { hour, minute };
+  }
+
+  let level = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+  if (!Number.isInteger(level) || level < 0 || level >= LEVELS.length) level = 0;
+  let score = 0;
+  let target = null;
+  let selHour = null;
+  let selTens = null;
+  let selOnes = null;
+  let locked = false;
+
+  const levelsEl = document.getElementById('levels');
+  const scoreEl = document.getElementById('score');
+  const clockEl = document.getElementById('clock');
+  const clockWrapEl = document.getElementById('clockWrap');
+  const ticksG = document.getElementById('ticks');
+  const numbersG = document.getElementById('numbers');
+  const hourHandG = document.getElementById('hourHand');
+  const minuteHandG = document.getElementById('minuteHand');
+  const checkBtn = document.getElementById('check');
+  const pickerHour = document.getElementById('pickerHour');
+  const pickerTens = document.getElementById('pickerTens');
+  const pickerOnes = document.getElementById('pickerOnes');
+  const valHour = document.getElementById('valHour');
+  const valTens = document.getElementById('valTens');
+  const valOnes = document.getElementById('valOnes');
+  const popupBackdrop = document.getElementById('popupBackdrop');
+  const popupTitle = document.getElementById('popupTitle');
+  const popupGrid = document.getElementById('popupGrid');
+  const popupCancel = document.getElementById('popupCancel');
+
+  function drawTicks() {
+    ticksG.innerHTML = '';
+    for (let i = 0; i < 60; i++) {
+      const rad = i * 6 * Math.PI / 180;
+      const major = i % 5 === 0;
+      const rStart = major ? 86 : 92;
+      const rEnd = 96;
+      const sx = Math.sin(rad) * rStart;
+      const sy = -Math.cos(rad) * rStart;
+      const ex = Math.sin(rad) * rEnd;
+      const ey = -Math.cos(rad) * rEnd;
+      const l = document.createElementNS(SVG_NS, 'line');
+      l.setAttribute('x1', sx.toFixed(2));
+      l.setAttribute('y1', sy.toFixed(2));
+      l.setAttribute('x2', ex.toFixed(2));
+      l.setAttribute('y2', ey.toFixed(2));
+      l.setAttribute('class', 'tick ' + (major ? 'major' : 'minor'));
+      ticksG.appendChild(l);
+    }
+  }
+
+  function drawNumbers() {
+    numbersG.innerHTML = '';
+    for (let i = 1; i <= 12; i++) {
+      const rad = i * 30 * Math.PI / 180;
+      const x = Math.sin(rad) * 72;
+      const y = -Math.cos(rad) * 72;
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', x.toFixed(2));
+      t.setAttribute('y', y.toFixed(2));
+      t.setAttribute('class', 'number');
+      t.textContent = String(i);
+      numbersG.appendChild(t);
+    }
+  }
+
+  function setClockHands(hour, minute) {
+    // Hour hand at fractional position so 3:30 shows halfway between 3 and 4.
+    const hourMod = hour % 12;
+    const hourAngle = (hourMod + minute / 60) * 30;
+    const minAngle = minute * 6;
+    hourHandG.setAttribute('transform', 'rotate(' + hourAngle + ')');
+    minuteHandG.setAttribute('transform', 'rotate(' + minAngle + ')');
+  }
+
+  function paintPicker(el, valueEl, v) {
+    if (v === null) {
+      valueEl.textContent = '?';
+      el.classList.remove('set');
+    } else {
+      valueEl.textContent = String(v);
+      el.classList.add('set');
+    }
+  }
+
+  function updateDisplay() {
+    paintPicker(pickerHour, valHour, selHour);
+    paintPicker(pickerTens, valTens, selTens);
+    paintPicker(pickerOnes, valOnes, selOnes);
+    checkBtn.disabled = locked || selHour === null || selTens === null || selOnes === null;
+  }
+
+  const PICKER_CONFIG = {
+    hour: { title: 'Pick the hour', values: [1,2,3,4,5,6,7,8,9,10,11,12], cols: 3 },
+    tens: { title: 'Pick the tens digit', values: [0,1,2,3,4,5], cols: 3 },
+    ones: { title: 'Pick the ones digit', values: [0,1,2,3,4,5,6,7,8,9], cols: 5 }
+  };
+
+  function openPicker(slot) {
+    if (locked) return;
+    const config = PICKER_CONFIG[slot];
+    popupTitle.textContent = config.title;
+    popupGrid.className = 'popup-grid cols-' + config.cols;
+    popupGrid.innerHTML = '';
+    for (const v of config.values) {
+      const b = document.createElement('button');
+      b.className = 'popup-btn';
+      b.type = 'button';
+      b.textContent = String(v);
+      b.addEventListener('click', () => selectValue(slot, v));
+      popupGrid.appendChild(b);
+    }
+    popupBackdrop.hidden = false;
+  }
+
+  function closePicker() {
+    popupBackdrop.hidden = true;
+  }
+
+  function selectValue(slot, v) {
+    if (slot === 'hour') selHour = v;
+    else if (slot === 'tens') selTens = v;
+    else if (slot === 'ones') selOnes = v;
+    updateDisplay();
+    closePicker();
+  }
+
+  function renderLevels() {
+    levelsEl.innerHTML = '';
+    LEVELS.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.className = 'level-btn' + (i === level ? ' active' : '');
+      b.textContent = L.name;
+      b.addEventListener('click', () => {
+        if (i === level) return;
+        level = i;
+        try { localStorage.setItem(STORAGE_KEY, String(i)); } catch (e) {}
+        renderLevels();
+        nextQuestion();
+      });
+      levelsEl.appendChild(b);
+    });
+  }
+
+  function nextQuestion() {
+    locked = false;
+    target = genTime(LEVELS[level].granularity);
+    setClockHands(target.hour, target.minute);
+    selHour = null;
+    selTens = null;
+    selOnes = null;
+    updateDisplay();
+  }
+
+  function checkAnswer() {
+    if (locked) return;
+    if (selHour === null || selTens === null || selOnes === null) return;
+    const answerMinute = selTens * 10 + selOnes;
+    if (selHour === target.hour && answerMinute === target.minute) {
+      locked = true;
+      score++;
+      scoreEl.textContent = String(score);
+      clockEl.classList.add('correct');
+      updateDisplay();
+      setTimeout(() => {
+        clockEl.classList.remove('correct');
+        nextQuestion();
+      }, 800);
+    } else {
+      clockEl.classList.add('wrong');
+      clockWrapEl.classList.add('shake');
+      setTimeout(() => {
+        clockEl.classList.remove('wrong');
+        clockWrapEl.classList.remove('shake');
+      }, 400);
+    }
+  }
+
+  pickerHour.addEventListener('click', () => openPicker('hour'));
+  pickerTens.addEventListener('click', () => openPicker('tens'));
+  pickerOnes.addEventListener('click', () => openPicker('ones'));
+  popupCancel.addEventListener('click', closePicker);
+  popupBackdrop.addEventListener('click', (e) => {
+    if (e.target === popupBackdrop) closePicker();
+  });
+  checkBtn.addEventListener('click', checkAnswer);
+
+  drawTicks();
+  drawNumbers();
+  renderLevels();
+  nextQuestion();
+</script>
+</body>
+</html>

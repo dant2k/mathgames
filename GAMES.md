@@ -129,6 +129,33 @@ Follow-ups worth considering:
 
 ---
 
+## clock-read
+
+* Status: built
+* Title: Read the Clock
+* Emoji: ⏰
+* Accent Color: teal (`#26c6a4`)
+
+The opposite of `time-challenge`: a clock is displayed at a random time and the player has to read it and enter the time. The time is entered through three tap-to-open popups — one for the hour, one for the tens digit of the minute, and one for the ones digit — so the child breaks the problem into three simpler reads instead of typing a full number.
+
+Levels:
+  - L1 — 15 minute granularity
+  - L2 — 5 minute granularity
+  - L3 — 1 minute granularity
+
+Implementation notes:
+  - Reuses the same SVG clock rendering as `time-challenge` (viewBox −100..100, 60 tick marks with major every 5, numbers 1..12, fractional hour-hand position). The clock is read-only — no pointer handlers.
+  - Selector row: three tiles reading `Hour : Tens Ones`. Each shows the current selection or `?`. Tapping a tile opens a modal popup with a grid of number buttons:
+    - Hour → 3×4 grid, values 1..12
+    - Tens → 3×2 grid, values 0..5 (max 59 minutes)
+    - Ones → 5×2 grid, values 0..9
+  - Popup closes on: tap on a number, tap on the backdrop, or the Cancel button.
+  - Check button is disabled until all three slots are filled. Combined minute = `tens * 10 + ones`.
+  - Feedback: correct → green face flash + score +1 + auto-advance after 800ms. Wrong → red face + shake, no score change, retry allowed.
+  - Level persists in `localStorage` key `mathgames.clock-read.level`.
+
+---
+
 ## time-challenge
 * Status: built
 * Title: Time Challenge
