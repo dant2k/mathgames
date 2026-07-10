@@ -129,6 +129,32 @@ Follow-ups worth considering:
 
 ---
 
+## time-challenge
+* Status: built
+* Title: Time Challenge
+* Emoji: 🕐
+* Accent Color: light blue (`#4ec3f0`)
+
+This presents a standard 12 hour time for the player to set the corresponding analog representation. There should be a clock where clicking on the inner area moves the small hand corresponding to the hour, and clicking the outer area sets the minute hand. Then there's a button to check the current clock setting as the answer.
+
+Levels:
+  - L1 — 15 minute granularity
+  - L2 — 5 minute granularity
+  - L3 — 1 minute granularity
+
+Implementation notes:
+  - Analog clock rendered as inline SVG (viewBox −100..100). 12 hour numbers around an inner ring; 60 tick marks (major every 5) around the outer rim.
+  - Click/drag zone: tap or drag inside radius 68 sets the hour (snaps to nearest 1..12). Outside radius 68 sets the minute (always snaps to 1-minute precision — the level's granularity controls the target time, not the input, so the player can always dial in the exact answer). A subtle dashed inner ring hints at the boundary. The minute band is intentionally the larger of the two zones because it needs the finer targeting.
+  - Drag is supported — pointerdown captures the zone and pointermove keeps updating it. The zone is locked at pointerdown so accidentally crossing the boundary mid-drag doesn't hijack the other hand.
+  - Hour hand renders at the fractional position (`hour + minute/60`) so, e.g., 3:30 shows the hour hand halfway between 3 and 4, matching a real clock. This is a core teaching moment — the kid learns to read analog times, not just place hands.
+  - Check button validates selectedHour + selectedMinute against the target exactly.
+  - Feedback: correct → green face flash + score +1 + auto-advance after 800ms. Wrong → red face + shake, no score change, retry allowed.
+  - Level persists in `localStorage` key `mathgames.time-challenge.level`.
+
+
+
+---
+
 ## subtraction-basic
 
 - Status: planned

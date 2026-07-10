@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Time Challenge — Math Games</title>
+<style>
+  :root {
+    --bg: #eaf6ff;
+    --card-bg: #ffffff;
+    --accent: #4ec3f0;
+    --accent-strong: #2ba7d8;
+    --text: #1a2233;
+    --muted: #6b7a90;
+    --correct: #4caf50;
+    --correct-bg: #eaffea;
+    --wrong: #ff6b6b;
+    --wrong-bg: #ffecec;
+    --face-stroke: #cfd8e3;
+    --tick: #566574;
+    --hour-hand: #1a2233;
+    --minute-hand: #2ba7d8;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body { min-height: 100vh; padding: 16px 20px 24px; display: flex; flex-direction: column; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .back {
+    color: var(--muted); text-decoration: none; font-size: 1.05rem;
+    padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,0.04);
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .score { font-size: 1.05rem; color: var(--muted); }
+  .score strong { color: var(--accent-strong); font-size: 1.4rem; margin-left: 4px; }
+
+  .levels { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .level-btn {
+    background: var(--card-bg); border: 3px solid #eee; padding: 10px 16px;
+    border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    color: var(--muted); min-height: 48px; font-family: inherit;
+  }
+  .level-btn.active { border-color: var(--accent); color: var(--accent-strong); }
+
+  /* Keep the HUD rows aligned to the play-area width so on wide screens
+     the score, level picker, target, and clock all sit together instead
+     of the HUD drifting to the viewport edges. */
+  .topbar, .levels, .target, .clock-wrap, .actions, .hint {
+    width: 100%; max-width: 420px;
+    margin-left: auto; margin-right: auto;
+  }
+
+  .target { text-align: center; color: var(--muted); font-size: 1rem; margin-bottom: 6px; }
+  .target strong {
+    display: block; font-size: clamp(2.6rem, 12vw, 4rem);
+    font-weight: 800; color: var(--text); letter-spacing: 0.05em;
+    line-height: 1.1; margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .clock-wrap { margin: 14px auto; }
+  .clock {
+    width: 100%; height: auto; display: block;
+    touch-action: none;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.09));
+  }
+  .face { fill: #ffffff; stroke: var(--face-stroke); stroke-width: 1.5; transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s; }
+  .inner-hint { fill: none; stroke: var(--face-stroke); stroke-width: 0.7; stroke-dasharray: 2 3; opacity: 0.55; }
+  .tick { stroke: var(--tick); }
+  .tick.major { stroke-width: 2; }
+  .tick.minor { stroke-width: 0.6; opacity: 0.7; }
+  .number {
+    fill: var(--text); font-size: 15px; font-weight: 700;
+    text-anchor: middle; dominant-baseline: central;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .hour-hand line { stroke: var(--hour-hand); stroke-width: 6.5; stroke-linecap: round; }
+  .minute-hand line { stroke: var(--minute-hand); stroke-width: 4; stroke-linecap: round; }
+  .pivot { fill: var(--hour-hand); }
+
+  .clock.correct .face { stroke: var(--correct); stroke-width: 4; fill: var(--correct-bg); }
+  .clock.wrong .face { stroke: var(--wrong); stroke-width: 4; fill: var(--wrong-bg); }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .clock-wrap.shake { animation: shake 0.35s; }
+
+  .actions { display: flex; justify-content: center; margin-top: 8px; }
+  .check {
+    background: var(--accent); color: #fff; border: none;
+    padding: 16px 32px; border-radius: 16px; font-size: 1.3rem; font-weight: 800;
+    min-height: 64px; font-family: inherit; cursor: pointer; letter-spacing: 0.02em;
+    box-shadow: 0 4px 12px rgba(78, 195, 240, 0.35);
+    width: 100%; max-width: 300px;
+  }
+  .check:active { transform: scale(0.98); }
+  .check:disabled { opacity: 0.5; cursor: default; }
+
+  .hint {
+    text-align: center; color: var(--muted); font-size: 0.85rem;
+    margin: 6px auto 0;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../index.html">← Games</a>
+    <div class="score">Score:<strong id="score">0</strong></div>
+  </div>
+
+  <div class="levels" id="levels"></div>
+
+  <div class="target">Show this time on the clock<strong id="target">12:00</strong></div>
+
+  <div class="clock-wrap" id="clockWrap">
+    <svg id="clock" class="clock" viewBox="-100 -100 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle class="face" cx="0" cy="0" r="98"/>
+      <circle class="inner-hint" cx="0" cy="0" r="68"/>
+      <g id="ticks"></g>
+      <g id="numbers"></g>
+      <g id="minuteHand" class="minute-hand"><line x1="0" y1="0" x2="0" y2="-82"/></g>
+      <g id="hourHand" class="hour-hand"><line x1="0" y1="0" x2="0" y2="-52"/></g>
+      <circle class="pivot" cx="0" cy="0" r="4.5"/>
+    </svg>
+  </div>
+
+  <div class="hint">Tap inside the ring for the hour, on the ring for the minute.</div>
+
+  <div class="actions">
+    <button id="check" class="check">Check</button>
+  </div>
+
+<script>
+  const GAME_ID = 'time-challenge';
+  const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const LEVELS = [
+    { name: 'Level 1', granularity: 15 },
+    { name: 'Level 2', granularity: 5 },
+    { name: 'Level 3', granularity: 1 }
+  ];
+
+  const HOUR_ZONE_R = 68;
+
+  function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+
+  function genTime(gran) {
+    const hour = rand(1, 12);
+    const steps = 60 / gran;
+    const minute = rand(0, steps - 1) * gran;
+    return { hour, minute };
+  }
+
+  function fmtTime(h, m) {
+    return h + ':' + String(m).padStart(2, '0');
+  }
+
+  let level = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+  if (!Number.isInteger(level) || level < 0 || level >= LEVELS.length) level = 0;
+  let score = 0;
+  let target = null;
+  let selectedHour = 12;
+  let selectedMinute = 0;
+  let locked = false;
+  let dragZone = null;
+
+  const levelsEl = document.getElementById('levels');
+  const scoreEl = document.getElementById('score');
+  const targetEl = document.getElementById('target');
+  const clockEl = document.getElementById('clock');
+  const clockWrapEl = document.getElementById('clockWrap');
+  const ticksG = document.getElementById('ticks');
+  const numbersG = document.getElementById('numbers');
+  const hourHandG = document.getElementById('hourHand');
+  const minuteHandG = document.getElementById('minuteHand');
+  const checkBtn = document.getElementById('check');
+
+  function drawTicks() {
+    ticksG.innerHTML = '';
+    for (let i = 0; i < 60; i++) {
+      const rad = i * 6 * Math.PI / 180;
+      const major = i % 5 === 0;
+      const rStart = major ? 86 : 92;
+      const rEnd = 96;
+      const sx = Math.sin(rad) * rStart;
+      const sy = -Math.cos(rad) * rStart;
+      const ex = Math.sin(rad) * rEnd;
+      const ey = -Math.cos(rad) * rEnd;
+      const l = document.createElementNS(SVG_NS, 'line');
+      l.setAttribute('x1', sx.toFixed(2));
+      l.setAttribute('y1', sy.toFixed(2));
+      l.setAttribute('x2', ex.toFixed(2));
+      l.setAttribute('y2', ey.toFixed(2));
+      l.setAttribute('class', 'tick ' + (major ? 'major' : 'minor'));
+      ticksG.appendChild(l);
+    }
+  }
+
+  function drawNumbers() {
+    numbersG.innerHTML = '';
+    for (let i = 1; i <= 12; i++) {
+      const rad = i * 30 * Math.PI / 180;
+      const x = Math.sin(rad) * 65;
+      const y = -Math.cos(rad) * 65;
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', x.toFixed(2));
+      t.setAttribute('y', y.toFixed(2));
+      t.setAttribute('class', 'number');
+      t.textContent = String(i);
+      numbersG.appendChild(t);
+    }
+  }
+
+  function updateHands() {
+    // Hour hand includes minute contribution so 3:30 shows the hour hand
+    // halfway between 3 and 4, matching a real clock. selectedHour is 1..12;
+    // hourMod maps 12 -> 0 so straight up is 0deg.
+    const hourMod = selectedHour % 12;
+    const hourAngle = (hourMod + selectedMinute / 60) * 30;
+    const minAngle = selectedMinute * 6;
+    hourHandG.setAttribute('transform', 'rotate(' + hourAngle + ')');
+    minuteHandG.setAttribute('transform', 'rotate(' + minAngle + ')');
+  }
+
+  function pointerToSvg(evt) {
+    const rect = clockEl.getBoundingClientRect();
+    const cx = evt.clientX - rect.left;
+    const cy = evt.clientY - rect.top;
+    const x = (cx / rect.width) * 200 - 100;
+    const y = (cy / rect.height) * 200 - 100;
+    return { x, y };
+  }
+
+  function applyZone(x, y) {
+    // Angle 0 = up (12 o'clock), increasing clockwise.
+    const a = ((Math.atan2(x, -y) * 180 / Math.PI) + 360) % 360;
+    if (dragZone === 'hour') {
+      const h = Math.round(a / 30) % 12;
+      selectedHour = h === 0 ? 12 : h;
+    } else if (dragZone === 'minute') {
+      let m = Math.round(a / 6);
+      m = ((m % 60) + 60) % 60;
+      selectedMinute = m;
+    }
+    updateHands();
+  }
+
+  function onPointerDown(e) {
+    if (locked) return;
+    const { x, y } = pointerToSvg(e);
+    const r = Math.sqrt(x * x + y * y);
+    if (r > 100) return;
+    // Lock the zone on pointerdown so dragging across the boundary doesn't
+    // hijack the other hand halfway through a gesture.
+    dragZone = r < HOUR_ZONE_R ? 'hour' : 'minute';
+    try { clockEl.setPointerCapture(e.pointerId); } catch (err) {}
+    applyZone(x, y);
+    e.preventDefault();
+  }
+  function onPointerMove(e) {
+    if (!dragZone) return;
+    const { x, y } = pointerToSvg(e);
+    applyZone(x, y);
+  }
+  function onPointerEnd(e) {
+    dragZone = null;
+    try { clockEl.releasePointerCapture(e.pointerId); } catch (err) {}
+  }
+
+  function renderLevels() {
+    levelsEl.innerHTML = '';
+    LEVELS.forEach((L, i) => {
+      const b = document.createElement('button');
+      b.className = 'level-btn' + (i === level ? ' active' : '');
+      b.textContent = L.name;
+      b.addEventListener('click', () => {
+        if (i === level) return;
+        level = i;
+        try { localStorage.setItem(STORAGE_KEY, String(i)); } catch (e) {}
+        renderLevels();
+        nextQuestion();
+      });
+      levelsEl.appendChild(b);
+    });
+  }
+
+  function nextQuestion() {
+    locked = false;
+    checkBtn.disabled = false;
+    target = genTime(LEVELS[level].granularity);
+    targetEl.textContent = fmtTime(target.hour, target.minute);
+    selectedHour = 12;
+    selectedMinute = 0;
+    updateHands();
+  }
+
+  function checkAnswer() {
+    if (locked) return;
+    if (selectedHour === target.hour && selectedMinute === target.minute) {
+      locked = true;
+      checkBtn.disabled = true;
+      score++;
+      scoreEl.textContent = String(score);
+      clockEl.classList.add('correct');
+      setTimeout(() => {
+        clockEl.classList.remove('correct');
+        nextQuestion();
+      }, 800);
+    } else {
+      clockEl.classList.add('wrong');
+      clockWrapEl.classList.add('shake');
+      setTimeout(() => {
+        clockEl.classList.remove('wrong');
+        clockWrapEl.classList.remove('shake');
+      }, 400);
+    }
+  }
+
+  clockEl.addEventListener('pointerdown', onPointerDown);
+  clockEl.addEventListener('pointermove', onPointerMove);
+  clockEl.addEventListener('pointerup', onPointerEnd);
+  clockEl.addEventListener('pointercancel', onPointerEnd);
+  checkBtn.addEventListener('click', checkAnswer);
+
+  drawTicks();
+  drawNumbers();
+  renderLevels();
+  nextQuestion();
+</script>
+</body>
+</html>
