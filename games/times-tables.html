@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Addition — Math Games</title>
+<title>Times Tables — Math Games</title>
 <style>
   :root {
-    --bg: #fff7e6;
+    --bg: #f2eeff;
     --card-bg: #ffffff;
-    --accent: #ff9b3d;
+    --accent: #7b5cff;
     --text: #1a2233;
     --muted: #6b7a90;
     --correct: #4caf50;
@@ -42,9 +42,6 @@
   }
   .level-btn.active { border-color: var(--accent); color: var(--accent); }
 
-  /* Keep the HUD rows aligned to the play-area width so on wide screens
-     the score and back button sit next to the answer choices instead of
-     drifting to the far viewport edges. */
   .topbar, .levels {
     width: 100%;
     max-width: 480px;
@@ -57,30 +54,11 @@
     align-items: center; justify-content: center; text-align: center; padding: 12px 0;
   }
   .prompt {
-    font-size: clamp(2.5rem, 11vw, 5rem); font-weight: 800;
-    margin-bottom: 40px; line-height: 1.05;
-    display: flex; justify-content: center; align-items: center;
-  }
-  .stack {
-    display: inline-grid;
-    grid-template-columns: auto auto;
-    column-gap: 0.2em;
-    justify-content: end;
+    font-size: clamp(2.5rem, 11vw, 5rem); font-weight: 800; letter-spacing: 0.05em;
+    margin-bottom: 40px; line-height: 1.1;
     font-variant-numeric: tabular-nums;
   }
-  .stack .op {
-    color: var(--accent);
-    text-align: right;
-    min-width: 0.6em;
-  }
-  .stack .op.hidden { visibility: hidden; }
-  .stack .num { text-align: right; }
-  .stack .rule {
-    grid-column: 1 / -1;
-    height: 0;
-    border-bottom: 0.08em solid currentColor;
-    margin-top: 0.12em;
-  }
+  .prompt .times { color: var(--accent); margin: 0 0.15em; }
 
   .choices {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
@@ -119,63 +97,62 @@
   </div>
 
 <script>
-  const GAME_ID = 'addition-basic';
+  const GAME_ID = 'times-tables';
   const STORAGE_KEY = 'mathgames.' + GAME_ID + '.level';
 
   const LEVELS = [
-    { name: 'Level 1', gen: () => addOp(rand(0, 9), rand(0, 9)) },
-    { name: 'Level 2', gen: () => genNoCarryPair(10, 30) },
-    { name: 'Level 3', gen: () => genCarryPair(10, 30) },
-    { name: 'Level 4', gen: () => addOp(rand(100, 999), rand(100, 999)) },
-    { name: 'Level 5', gen: () => genNoCarryTriple(10, 99) }
+    { name: 'Level 1', gen: () => genL1() },
+    { name: 'Level 2', gen: () => genPair(1, 10, 1, 10) },
+    { name: 'Level 3', gen: () => genRanges(11, 12, 1, 10) },
+    { name: 'Level 4', gen: () => genRanges(10, 30, 1, 9) }
   ];
   const LEVEL_POINTS = [1, 3, 7, 13, 20];
 
   function rand(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
 
-  function addOp(...operands) {
-    return { operands, answer: operands.reduce((s, x) => s + x, 0) };
+  function genPair(aLo, aHi, bLo, bHi) {
+    const a = rand(aLo, aHi), b = rand(bLo, bHi);
+    return { a, b, answer: a * b };
   }
 
-  function genNoCarryPair(lo, hi) {
-    for (let i = 0; i < 200; i++) {
-      const a = rand(lo, hi), b = rand(lo, hi);
-      if ((a % 10) + (b % 10) <= 9) return addOp(a, b);
-    }
-    return addOp(lo, lo);
+  function genL1() {
+    // One factor is 2, 5, or 10; the other is 1..10. (0 is excluded — × 0
+    // is a single rule, not a fact worth practicing, and it degenerates the
+    // off-by-one distractors since (a±1) × 0 collapses to the answer.)
+    const easyOptions = [2, 5, 10];
+    const easy = easyOptions[rand(0, easyOptions.length - 1)];
+    const other = rand(1, 10);
+    return Math.random() < 0.5
+      ? { a: easy, b: other, answer: easy * other }
+      : { a: other, b: easy, answer: easy * other };
   }
 
-  function genCarryPair(lo, hi) {
-    for (let i = 0; i < 200; i++) {
-      const a = rand(lo, hi), b = rand(lo, hi);
-      if ((a % 10) + (b % 10) >= 10) return addOp(a, b);
-    }
-    return addOp(15, 16);
+  function genRanges(bigLo, bigHi, smallLo, smallHi) {
+    // One factor from the "bigger" range, the other from the "smaller" range,
+    // shown in random order.
+    const bigger = rand(bigLo, bigHi);
+    const smaller = rand(smallLo, smallHi);
+    return Math.random() < 0.5
+      ? { a: bigger, b: smaller, answer: bigger * smaller }
+      : { a: smaller, b: bigger, answer: bigger * smaller };
   }
 
-  function genNoCarryTriple(lo, hi) {
-    for (let i = 0; i < 500; i++) {
-      const a = rand(lo, hi), b = rand(lo, hi), c = rand(lo, hi);
-      const ones = (a % 10) + (b % 10) + (c % 10);
-      const tens = Math.floor(a / 10) + Math.floor(b / 10) + Math.floor(c / 10);
-      if (ones <= 9 && tens <= 9) return addOp(a, b, c);
-    }
-    return addOp(12, 23, 14);
-  }
-
-  function buildChoices(correct) {
+  function buildChoices(a, b, correct) {
+    // Favor "off-by-one row/column" distractors — a common kid mistake is
+    // reading from an adjacent row or column of the times table.
     const set = new Set([correct]);
-    // Force at least one distractor with the same ones digit so the child
-    // can't shortcut by eyeballing only the ones column. correct - 10 is the
-    // classic "forgot to carry" mistake; fall back to +10 / ±20 if needed.
-    const sameOnesCandidates = [correct - 10, correct + 10, correct - 20, correct + 20];
-    for (const c of sameOnesCandidates) {
-      if (c >= 0 && !set.has(c)) { set.add(c); break; }
+    const neighborhood = [
+      (a + 1) * b, (a - 1) * b,
+      a * (b + 1), a * (b - 1)
+    ];
+    for (const v of neighborhood.sort(() => Math.random() - 0.5)) {
+      if (set.size >= 3) break;
+      if (v >= 0 && !set.has(v)) set.add(v);
     }
     let attempts = 0;
     while (set.size < 4 && attempts < 200) {
       attempts++;
-      const delta = rand(-5, 5);
+      const delta = rand(-Math.max(3, a + b), Math.max(3, a + b));
       if (delta === 0) continue;
       const wrong = correct + delta;
       if (wrong >= 0) set.add(wrong);
@@ -196,6 +173,15 @@
   const choicesEl = document.getElementById('choices');
   const scoreEl = document.getElementById('score');
 
+  function renderPrompt(a, b) {
+    promptEl.innerHTML = '';
+    promptEl.append(
+      document.createTextNode(String(a)),
+      Object.assign(document.createElement('span'), { className: 'times', textContent: '×' }),
+      document.createTextNode(String(b))
+    );
+  }
+
   function renderLevels() {
     levelsEl.innerHTML = '';
     LEVELS.forEach((L, i) => {
@@ -213,31 +199,11 @@
     });
   }
 
-  function renderStackedPrompt(operands) {
-    promptEl.innerHTML = '';
-    const stack = document.createElement('div');
-    stack.className = 'stack';
-    operands.forEach((op, i) => {
-      const isLast = i === operands.length - 1;
-      const opEl = document.createElement('span');
-      opEl.className = 'op' + (isLast ? '' : ' hidden');
-      opEl.textContent = '+';
-      const numEl = document.createElement('span');
-      numEl.className = 'num';
-      numEl.textContent = String(op);
-      stack.append(opEl, numEl);
-    });
-    const rule = document.createElement('span');
-    rule.className = 'rule';
-    stack.appendChild(rule);
-    promptEl.appendChild(stack);
-  }
-
   function nextQuestion() {
     locked = false;
     current = LEVELS[level].gen();
-    renderStackedPrompt(current.operands);
-    const options = buildChoices(current.answer);
+    renderPrompt(current.a, current.b);
+    const options = buildChoices(current.a, current.b, current.answer);
     choicesEl.innerHTML = '';
     options.forEach(ans => {
       const btn = document.createElement('button');

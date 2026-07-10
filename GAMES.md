@@ -11,6 +11,8 @@ Level scaling should follow the convention in `CLAUDE.md`:
 
 Not every game needs every level; skip levels that don't make sense for the skill.
 
+**Scoring convention:** every game awards `LEVEL_POINTS[level]` per correct answer, where `LEVEL_POINTS = [1, 3, 7, 13, 20]`. Games with fewer than 5 levels use the leading portion. Wrong-answer penalties (where they exist) stay at −1.
+
 ---
 
 ## Spec template
@@ -66,7 +68,7 @@ Answer input:
 Levels:
   - L1 — A, B ∈ [0, 9]
   - L2 — A, B ∈ [10, 30], no carry (ones digits sum to ≤ 9)
-  - L3 — A, B ∈ [10, 30], carry allowed
+  - L3 — A, B ∈ [10, 30], always carries (ones digits sum to ≥ 10)
   - L4 — A, B ∈ [100, 999], carry allowed
   - L5 — three-addend sum A + B + C with A, B, C ∈ [10, 99]; no carry in either column
 
@@ -75,7 +77,7 @@ Feedback:
   - Wrong → red border + light-red fill + 300ms shake on the chosen button. Score unchanged. Question stays, retry allowed.
 
 Notes:
-  - Distractors: 3 wrong options at offsets in [−5, +5] excluding 0; discard negatives; guaranteed 4 distinct non-negative choices via fallback filler.
+  - Distractors: at least one option always shares the correct answer's ones digit (typically `answer − 10`, the classic "forgot to carry" mistake — falls back to `+10` / `±20` if `−10` is negative) so the child can't shortcut by matching only the ones column. Remaining slots use offsets in [−5, +5] excluding 0; discard negatives; fallback filler guarantees 4 distinct non-negative choices.
   - Level persists in `localStorage` key `mathgames.addition-basic.level`.
   - Answer choices shuffled every question.
 
@@ -97,6 +99,7 @@ Implementation notes:
     - L2 — mixed single-digit +/−; tile values 0–18
     - L3 — mixed +/− with terms up to 30 (may involve carry/borrow); tile values 0–40
   - Equation generation is target-first: pick a random bottom-most tile, then generate a level-appropriate equation whose answer equals it. Guarantees the invariant that the current equation is always answerable.
+  - **Wrong shots ricochet.** After a wrong tile flashes red and fades, a red projectile launches from that tile's position back down toward the ship's current X and impacts it. The ship shakes and flashes red for ~½s. Score is still just −1; the ship is not destroyed (a kid game shouldn't punish a single miss too harshly, but the visual makes the "wrong answer = you get hit" cause-and-effect concrete).
   - Game over shows an overlay with final score and a "Play again" button.
 
 ---
@@ -110,7 +113,7 @@ Implementation notes:
 This game provides a grid of numbers that the user can draw axis aligned lines across to create sequences. The top of play are provides a template for the math equation to be created, using blank spaces, operations, and the equals sign. So for example, the top might show __ + __ = __ meaning the player draws a line connecting three numbers where the first two must sum to the last. If the line drawn is valid, the numbers are deleted from the grid and numbers above fall down to take their space with new numbers appearing from above. Play continues until no match can be found.
 
 Implementation notes:
-  - Grid: 8×8. Cells positioned absolutely so they can animate falls with CSS transitions.
+  - Grid: 7×7. Cells positioned absolutely so they can animate falls with CSS transitions.
   - Line interpretation: **snake path** — pointerdown on any cell starts a path, drag onto an orthogonally adjacent cell to extend, drag back onto the previous cell to shrink, drag onto a non-adjacent cell does nothing. The path can turn corners. Caps at the template length. Release evaluates.
   - Line reads in either direction — dragging in either order counts if the numbers satisfy the equation.
   - Template display fills in numbers as the player drags (`? + ? = ?` → `5 + ? = ?` → `5 + 3 = ?` → `5 + 3 = 8`), so the child sees the equation build in real time.
@@ -184,108 +187,90 @@ Implementation notes:
 
 ## subtraction-basic
 
-- Status: planned
+- Status: built
 - Title: Subtraction
 - Emoji: ➖
 - Accent color: `#4a7cff` (blue)
 - Skill: Whole-number subtraction, mirroring addition-basic levels.
 
 Question format:
-  `A − B` shown centered in large digits. Always A ≥ B (no negative answers).
+  L1–L4: vertical stacked layout (minuend on top, `− subtrahend` below, horizontal rule), right-justified with `font-variant-numeric: tabular-nums` so columns align. Always A ≥ B (no negative answers).
+  L5: inline `? − B = C` with the `?` shown in accent color.
 
 Answer input:
-  4 multiple-choice buttons.
+  4 multiple-choice buttons in a 2×2 grid.
 
 Levels:
   - L1 — A, B ∈ [0, 9], A ≥ B
   - L2 — A ∈ [10, 30], no borrow (ones digit of A ≥ ones digit of B)
-  - L3 — A ∈ [10, 30], borrow allowed
+  - L3 — A ∈ [10, 30], always borrows (ones digit of A < ones digit of B)
   - L4 — A ∈ [100, 999], borrow allowed
-  - L5 — missing-minuend variant: shown as `? − B = C`, solve for `?`
+  - L5 — missing-minuend variant: shown as `? − B = C` with B, C ∈ [1, 20]; solve for `?`
 
 Feedback: same conventions as addition-basic.
 
 Notes:
-  - Distractor generation same as addition-basic but must never be negative.
+  - Distractors: at least one option shares the correct answer's ones digit (typically `answer + 10`, the classic "forgot to borrow" mistake — falls back to `−10` / `±20` if not viable). Remaining slots use offsets in [−5, +5] excluding 0; discard negatives; fallback filler guarantees 4 distinct non-negative choices.
+  - Level persists in `localStorage` key `mathgames.subtraction-basic.level`.
 
 ---
 
 ## times-tables
 
-- Status: planned
+- Status: built
 - Title: Times Tables
 - Emoji: ✖️
 - Accent color: `#7b5cff` (purple)
 - Skill: Single-digit multiplication facts, then extending.
 
 Question format:
-  `A × B` shown centered.
+  `A × B` shown centered inline. The `×` is rendered in accent color to visually anchor the operator.
 
 Answer input:
-  4 multiple-choice buttons.
+  4 multiple-choice buttons in a 2×2 grid.
 
 Levels:
-  - L1 — one factor is 2, 5, or 10; other ∈ [0, 10] (easy tables)
-  - L2 — both factors ∈ [0, 10] (full times tables)
-  - L3 — one factor ∈ [11, 12], other ∈ [0, 10]
-  - L4 — one factor is a two-digit number ≤ 30, other ∈ [0, 9]
+  - L1 — one factor is 2, 5, or 10; other ∈ [1, 10] (easy tables). Factor order randomized.
+  - L2 — both factors ∈ [1, 10] (full times tables).
+  - L3 — one factor ∈ [11, 12], other ∈ [1, 10]. Factor order randomized.
+  - L4 — one factor ∈ [10, 30], other ∈ [1, 9]. Factor order randomized.
+
+**`× 0` is intentionally excluded** at every level. It's a single memorized rule ("anything × 0 = 0"), not a fact worth drilling with distractors, and it degenerates the off-by-one row/column distractors — `(a±1) × 0` both collapse to `0`, leaving only two useful candidates instead of four, and the kid can reasonably think "any of these numbers × 0 = 0" and be confused when only the `0` button is accepted.
 
 Feedback: same conventions as addition-basic.
 
 Notes:
-  - Distractors should favor common wrong-table confusions (e.g., off-by-one row/column) plus one random distractor.
-  - Optional: after N in a row correct on L1, celebrate a "table cleared" moment.
+  - Distractors favor common wrong-table confusions: `(a±1) * b` and `a * (b±1)` (off-by-one row/column reads from the times table). Remaining slots filled with random offsets scaled to the answer's magnitude; discard negatives; fallback filler guarantees 4 distinct non-negative choices.
+  - Level persists in `localStorage` key `mathgames.times-tables.level`.
 
 ---
 
 ## missing-number
 
-- Status: planned
+- Status: built
 - Title: Missing Number
 - Emoji: ❓
 - Accent color: `#26a69a` (teal)
 - Skill: Algebraic thinking — find the unknown in a simple equation.
 
 Question format:
-  Equation with one box replaced by a `?`, e.g., `3 + ? = 10` or `? − 4 = 5`.
+  Inline equation with the unknown shown as a `?` in accent color with an underline (blank-to-fill look), e.g., `3 + ? = 10` or `? − 4 = 5`. Operators and equals sign are also accent-colored to visually separate them from the numbers.
 
 Answer input:
-  4 multiple-choice buttons.
+  4 multiple-choice buttons in a 2×2 grid.
 
 Levels:
-  - L1 — addition with single-digit terms, unknown in either position (a + ? = c or ? + b = c)
-  - L2 — subtraction with single-digit terms, unknown in either position
-  - L3 — mix of addition and subtraction, values up to 30
-  - L4 — introduce multiplication: `? × B = C` with L1-2 times-table facts
+  - L1 — addition, single-digit terms (0..9), unknown in position `a` or `b` (never the result).
+  - L2 — subtraction, single-digit terms (0..9), unknown in position `a` or `b`; A ≥ B guaranteed.
+  - L3 — mix of addition and subtraction with terms up to 30.
+  - L4 — multiplication `? × B = C` (or occasionally `A × ? = C`) with both factors in [0, 10] so it only draws on L1-L2 times-table facts.
 
 Feedback: same conventions as addition-basic.
 
 Notes:
-  - Randomize which position holds the unknown so the child can't shortcut with pattern-matching.
+  - Which operand is unknown is randomized every question so the child can't shortcut with position-based pattern-matching.
+  - Distractors follow the addition-basic rule: at least one option shares the ones digit (typically `answer − 10`), rest are ±5 offsets, non-negative, filler fallback for 4 distinct choices.
+  - Level persists in `localStorage` key `mathgames.missing-number.level`.
 
 ---
 
-## greater-less
-
-- Status: planned
-- Title: Greater or Less
-- Emoji: ⚖️
-- Accent color: `#e91e63` (pink)
-- Skill: Comparing quantities and understanding `<`, `>`, `=`.
-
-Question format:
-  Two numbers side by side with a blank comparator in the middle, e.g., `47 ⬚ 74`.
-
-Answer input:
-  Three big tap targets: `<`, `=`, `>`.
-
-Levels:
-  - L1 — both numbers single-digit
-  - L2 — both numbers ≤ 30
-  - L3 — both numbers ≤ 999
-  - L4 — introduce simple expressions on each side (e.g., `3 + 4 ⬚ 8`)
-
-Feedback: same conventions as addition-basic.
-
-Notes:
-  - Ensure `=` cases appear often enough to matter (~1 in 4) so it isn't a trap answer.

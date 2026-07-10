@@ -104,9 +104,21 @@
     background: var(--accent);
     clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
     transform: translateX(-50%);
-    transition: left 120ms ease-out;
+    transition: left 120ms ease-out, background 260ms ease, filter 260ms ease;
     pointer-events: none;
     filter: drop-shadow(0 0 8px var(--accent));
+  }
+  .ship.ship-hit {
+    animation: ship-shake 0.42s;
+    background: var(--wrong);
+    filter: drop-shadow(0 0 12px var(--wrong));
+  }
+  @keyframes ship-shake {
+    0%, 100% { transform: translateX(-50%); }
+    20% { transform: translateX(calc(-50% - 7px)); }
+    40% { transform: translateX(calc(-50% + 7px)); }
+    60% { transform: translateX(calc(-50% - 5px)); }
+    80% { transform: translateX(calc(-50% + 5px)); }
   }
 
   .projectile {
@@ -117,6 +129,10 @@
     transform: translateX(-50%);
     box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
     pointer-events: none;
+  }
+  .projectile.return {
+    background: var(--wrong);
+    box-shadow: 0 0 8px var(--wrong), 0 0 16px var(--wrong);
   }
 
   .gameover {
@@ -186,6 +202,7 @@
       gen: (t) => (Math.random() < 0.5) ? genSubUpTo(t, 30, 60) : genAddUpTo(t, 30)
     }
   ];
+  const LEVEL_POINTS = [1, 3, 7, 13, 20];
 
   function genAdd(target, maxTerm) {
     const lo = Math.max(0, target - maxTerm);
@@ -378,14 +395,53 @@
       const t = tiles[hit.col][hit.row];
       t.alive = false;
       if (t.value === currentEquation.answer) {
-        score++;
+        score += LEVEL_POINTS[level];
         t.el.classList.add('hit-correct');
+        updateScore();
+        afterShot();
       } else {
         score--;
         t.el.classList.add('hit-wrong');
+        updateScore();
+        // Wrong answer: shot bounces off the tile and travels back to the ship.
+        const startX = formationX + hit.col * cellW + cellW / 2;
+        const startY = formationY + hit.row * cellH + cellH / 2;
+        launchReturnShot(startX, startY, afterShot);
       }
-      updateScore();
+    } else {
+      afterShot();
     }
+  }
+
+  function launchReturnShot(startX, startY, done) {
+    const proj = document.createElement('div');
+    proj.className = 'projectile return';
+    proj.style.left = startX + 'px';
+    proj.style.top = startY + 'px';
+    playfield.appendChild(proj);
+    void proj.offsetWidth;
+    const endX = shipX;
+    const endY = pfH - SHIP_ZONE + 12;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const duration = Math.max(180, Math.min(420, distance * 0.7));
+    proj.style.transition = 'left ' + duration + 'ms linear, top ' + duration + 'ms linear';
+    proj.style.left = endX + 'px';
+    proj.style.top = endY + 'px';
+    setTimeout(() => {
+      proj.remove();
+      hitShip();
+      done();
+    }, duration + 10);
+  }
+
+  function hitShip() {
+    ship.classList.add('ship-hit');
+    setTimeout(() => ship.classList.remove('ship-hit'), 520);
+  }
+
+  function afterShot() {
     advance();
     if (checkGameOver()) {
       firing = false;

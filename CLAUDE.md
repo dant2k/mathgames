@@ -22,6 +22,8 @@ Games should scale in difficulty whenever the math allows. Convention:
 
 Show a level picker at the top of the game so the child can choose freely. Persist the last-used level in `localStorage` under the key `mathgames.<game-id>.level`.
 
+**Score-per-correct scales with level.** Every game defines `const LEVEL_POINTS = [1, 3, 7, 13, 20];` and awards `LEVEL_POINTS[level]` for each correct answer instead of `1`. Harder levels visibly reward the extra effort; L1 stays at +1 so easy-mode still feels appropriate. Games with fewer than 5 levels just use the leading portion of the array. Wrong-answer penalties (e.g., shooter's −1) are not scaled — the ratchet is on the reward side.
+
 ## Adding a new game
 
 `GAMES.md` at the repo root is the source of truth for what each game does. Every game should have a spec entry there.
